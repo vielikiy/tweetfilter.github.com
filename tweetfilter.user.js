@@ -18,10 +18,10 @@ var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
 
-    this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings
+    this.debug = false; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings
                                  //if using debug, change _debuglevels to your needs 
     this._debuglevels = 'DEWIL'; //each char is a debug level - include in output: D=Debug, E=Error, W=Warning, I=Info, L=Log, empty string = show only function headers
-    this._debugfunctions = ['parselinks']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = []; //which functions to debug (whitelist). empty array = debug all functions
     
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     this.version = '1.2b'; //current script version
