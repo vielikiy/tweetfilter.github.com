@@ -1,0 +1,36 @@
+Tweetfilter 1.2
+
+Tweetfilter is a browser filter plugin for Twitter's (new) web-interface supporting Firefox, Chrome and Opera.
+
+Visit the Tweetfilter Website http://tweetfilter.netne.net/ for installation instructions and a bookmarklet for IE 8+ (and other HTML5 capable browsers with no native userscript support).
+
+You can filter tweets by matching a user, keywords, phrases or source. It stores all options, is well configurable and has a userfriendly collapsible interface. The filter can be inverted or temporarily disabled at any time. Tweetfilter doesn't filter matching tweets from or directed to you, unless you check the according options.
+Usage
+
+* to add a user to the filter add @@username (double @) to the filter (write the word in the "Add to filter"-input and press Enter). You can also click on + Filter-link at the bottom of a tweet and select the user from the list to add it to the filter.
+  User filters appear bold in the filter list.
+* to filter tweets containing a certain string also as part of another word simply add it to the filter-list. This also works for filtering replies to a user by adding @username (single @).
+* to filter tweets by tweet's source (via) add :@client to the filter (will appear italic). For example :@iphone will filter all tweets from clients containing "iphone".
+* to filter tweets containing an exact phrase or word add "word" to the filter (with the double quotes). This will match "i say word" but not "i say keyword", it matches only entire words or phrases.
+* Option invert filter hides all tweets except tweets matching the filter. This is handy when you search certain tweets in your timeline or want to take a look at what you might have missed during the day regarding a specific topic or user.
+* Option filter my posts also hides your own posts from the timeline (in case they match the searching criteria).
+* Option filter replies to me also hides matching posts from other users directed to you (in case they match the searching criteria).
+* Option filter all media filters all tweets linking to supported media types (youtube, twitpic, etc.)
+* Option show match count displays the tweet match count for every filter query.
+* Option highlight replies to me highlights replies from other users directed to you by adding some color to the tweet.
+* Option show mutual friends displays a smiley near each profile picture of a user following you back.
+* Option show via in tweets displays twitter client information in tweets
+* Option show line breaks shows the line breaks in tweets (like most desktop clients do)
+* Option show match count displays the count of matching tweets for every filter, all retweets and all media currently in the timeline.
+* Option show filtered tab shows a separate tab for the filtered tweets.
+* Option add selection menu: if active, after selecting some text in a tweet with your mouse a "add to filter" menu appears right under your mouse pointer, clicking it will add the selection to the filter.
+* Option stream navigation displays a horizontally draggable menu which makes it easier to fast scroll down to the bottom (and loading new tweets) and back to the top of the timeline. This also works outside the home timeline.
+* Option expand new tweets immediately shows new tweets instead of the bar.
+* Option expand links expands shortened urls in tweets. This also works outside the home timeline.
+* Option small links shrinks link size in tweets saving some space (especially when "expand links" is enabled)
+* Option fixed dashboard keeps the dashboard in position while scrolling down
+* Option compact activities hides detail in user activities
+* Option hide who to follow hides the "Who To Follow"-box.
+* Option hide trends hides the "Trends"-box
+* Option hide ad hides the advertising-box
+* Option auto-hide top bar shows the top bar only when the mouse is over it or when the search-field is focused
