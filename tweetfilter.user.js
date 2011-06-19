@@ -18,10 +18,11 @@ var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
 
-    this.debug = false; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings
-                                 //if using debug, change _debuglevels to your needs 
+    this.debug = false; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will slow down the script.
+                        //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs 
     this._debuglevels = 'DEWIL'; //each char is a debug level - include in output: D=Debug, E=Error, W=Warning, I=Info, L=Log, empty string = show only function headers
-    this._debugfunctions = []; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = ['parselinks']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugskipfunctions = ['checktweet']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
     
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     this.version = '1.2b'; //current script version
@@ -389,9 +390,8 @@ var TweetfilterPrototype = function() {
       this.polling.suspend = false;
       this.polling.busy = false;
       this.setstreamtitle();            
-      this.poll('parseitems');    
-      this.refreshfiltercss();
-      this.refreshfriendscss();
+      this.poll('parseitems');  
+      this.poll('refreshcss', ['filter', 'friends', 'layout']);
                                                                                                     _D('F:waitforstream', 'W:stream switched', decodeURIComponent(this.stream.key));
       return true;
     } else { //stream is loaded
@@ -1089,7 +1089,6 @@ var TweetfilterPrototype = function() {
             } else {
                                                                                                     _D('F:parsestream', 'W:itemid not found in filtered:',itemid);
               reparseitems = true;                                                                                      
-            
             }
           }
           break;
@@ -1133,23 +1132,24 @@ var TweetfilterPrototype = function() {
   
   //check tweet for any match or a specific search object 
   Tweetfilter.prototype.checktweet = function(tweet, search) {
-     if (this.stream.status === 'ready') {
-      var cs = this.cs();
-      //var cs = twttr.app.currentPage().streamManager.getCurrent();
-      var ismatch = false, searches = [];
+                                                                                                    var f=_F('checktweet');
+     var cs = this.cs(), query, ismatch;
+     if (cs && this.stream.status === 'ready') {
+      var searches = [];
       if (typeof search !== 'undefined') {
         searches = [search];
       } else {
         tweet.matches = [];
         searches = this.queries;
       }
-                                                                                                    _D('F:checktweet', 'D:checking tweet', tweet, 'searches', searches);
-      for (var s=0, smax=searches.length, query; s < smax && (query=searches[s]); s++) {
+                                                                                                    _D(f, 'D:checking tweet', tweet, 'searches', searches);
+      for (var s=0, smax=searches.length; s < smax; s++) {
+        query=searches[s];
         ismatch = false;
         //user filter: regular and simple (lowercase) match allowed
         if (query.user) {
-          if (query.regex) {
-            ismatch = query.regex.test(tweet.username) || (tweet.isrt && query.regex.test(tweet.rtuser));
+          if (query.regular) {
+            ismatch = query.regex.test(tweet.username) || (tweet.isrt && query.regex.test(tweet.rtuser))
           } else {
             ismatch = (tweet.username === query.search) || (tweet.isrt && tweet.rtuser === query.search);
           }
@@ -1196,6 +1196,7 @@ var TweetfilterPrototype = function() {
           }
         }
         if (ismatch && $.inArray(query.id, tweet.matches) === -1) {
+                                                                                                    _D(f, 'I:pushing match', query.id, '=', query.index, 'on tweet', tweet.id);
           tweet.matches.push(query.id);
           if (cs.filter.matches.hasOwnProperty(query.index)) {
             cs.filter.matches[query.index].push(tweet.id);
@@ -1275,7 +1276,7 @@ var TweetfilterPrototype = function() {
               if (/^[A-Za-z0-9\_]{1,15}$/.test(search.label)) {
                 search.label = '@'+search.label;
               } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
-                search.label = '@'+(typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
+                search.label = '@'+(typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
                 search.search = search.rx = regularmatch[2];
                 search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
               }
@@ -1287,7 +1288,7 @@ var TweetfilterPrototype = function() {
               if (/^[A-Za-z0-9\_]{1,15}$/.test(search.label)) {
                 search.label = '@'+search.label;
               } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
-                search.label = '@'+(typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
+                search.label = '@'+(typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
                 search.search = search.rx = regularmatch[2];
                 search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
               }
@@ -1300,7 +1301,7 @@ var TweetfilterPrototype = function() {
                 search.label = 'via '+exactmatch[1];
                 search.exact = true;
               } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
-                search.label = 'via '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
+                search.label = 'via '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
                 search.search = search.rx = regularmatch[2];
                 search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
               } else {
@@ -1315,7 +1316,7 @@ var TweetfilterPrototype = function() {
                 search.label = 'by '+exactmatch[1];
                 search.exact = true;
               } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular name match <-- by:The Doe's=/(jane|john)\sdoe/
-                search.label = 'by '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
+                search.label = 'by '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
                 search.search = search.rx = regularmatch[2];
                 search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
               } else {
@@ -1332,15 +1333,15 @@ var TweetfilterPrototype = function() {
               search.raw = search.label;
               search.index = search.raw.toLowerCase();
               if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
-                search.label = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
+                search.label = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/im');
                 search.search = search.rx = regularmatch[2];
                 search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
               }              
               break;
           }
-          if (search.rx) { //preserve case for regular expressions
+          if (search.rx) { 
             try {
-              search.regex = new RegExp(search.rx, 'ig');
+              search.regex = new RegExp(search.rx, 'im'); //case insensitive, multiline
               search.regular = true;
             } catch(e) {
               this.showmessage('This regular expression is invalid.<br />If you did not intend to use regular<br /> expressions prefix your filter with \' (single quote).');
@@ -1468,7 +1469,7 @@ var TweetfilterPrototype = function() {
               oldcount = +oldcount[1]+options.count;
               message.replace(/[0-9]+/, oldcount);
             }
-                                                                                                    _D('F:showmessage', 'I:found options.count', options.count, 'old count:', +container.attr('data-count'), 'new count:', count);
+                                                                                                    _D('F:showmessage', 'I:found options.count', options.count, 'old count:', +container.attr('data-count'), 'new count:', oldcount);
           } 
                                                                                                     _D('F:showmessage', 'I:replacing message', message);
           $('span.'+options.type, $message).replaceWith(message);
@@ -1894,9 +1895,9 @@ var TweetfilterPrototype = function() {
         shorturl = link.attr('href');
         link.attr('data-shorturl', shorturl);
       } else shorturl = link.attr('data-shorturl');
-      shownurl = link.html();
-      expandedurl = link.attr('data-expandedurl');
-      titleurl = link.attr('title');
+      shownurl = link.html(); //currently visible url shown in tweet
+      expandedurl = link.attr('data-expandedurl') || false; //if set, its the last expanded link
+      titleurl = link.attr('title'); //this is always the latest expanded link
       if ((!showexpanded && shownurl !== shorturl) || (showexpanded && shownurl !== titleurl)) { //multiple shortened links
         if (showexpanded) {
           link.html(titleurl);
@@ -1904,25 +1905,26 @@ var TweetfilterPrototype = function() {
           link.html(shorturl);
         }
       }
-                                                                                                    _D(f, 'expandedurl:', expandedurl, 'titleurl:', titleurl);
-      if (expandedurl != titleurl) {
+                                                                                                    _D(f, (expandedurl != titleurl ? 'W:': 'D:')+'expandedurl:', expandedurl, 'shownurl', shownurl, 'titleurl:', titleurl);
+      if (expandedurl != titleurl) { //has link been expanded since last run
         link.attr('data-expandedurl', titleurl);
         var itemid, id;
         var item = link.closest('div.stream-item');
         if (item.length) {
           if (this.stream.status === 'ready') {
+            var cs = this.cs();
             if (item.attr('id')) {
               id = +item.attr('id').substr(1);
+              itemid = cs.filter.items[id].tweetid;
             } else {
               itemid = item.attr('data-item-id');
               if (!itemid) {
-                                                                                                    _D(f, 'E:itemid not found!', item);
+                                                                                                    _D(f, 'E:id and itemid not found!', item);
                 return false;
               }
+              id = cs.filter.itemids[itemid]; 
             }
                                                                                                     _D(f, 'tweet id:', id);
-            var cs = this.cs();
-            id = cs.filter.itemids[itemid]; 
             
             if (id) {
                                                                                                     _D(f, 'searching tweet in filter index:', itemid);
@@ -1930,7 +1932,8 @@ var TweetfilterPrototype = function() {
               cs.filter.items[id].text += "\n"+titleurl.toLowerCase();
                                                                                                     _D(f, 'added link to text:', cs.filter.items[id].text);
                                                                                                     _D(f, 'checking tweet:', cs.filter.items[id]);
-              checktweets.push(id);
+              this.checktweet(cs.filter.items[id]);
+             // checktweets.push(id);
               this.refreshfiltercss();
             } else {
                                                                                                     _D(f, 'searching tweet in cache:', itemid);
@@ -1954,6 +1957,12 @@ var TweetfilterPrototype = function() {
       }
     }
                                                                                                     _D(f, 'check tweets', checktweets);
+    if (checktweets.length) {
+      checktweets = checktweets.unique();
+      for (var c=0,cmax=checktweets.length;c<cmax;c++) {
+        this.checktweet(cs.filter.items[checktweets[c]]);
+      }
+    }                                                                                                
     return true;
   };
   
@@ -1964,7 +1973,7 @@ var TweetfilterPrototype = function() {
     if (!this.widget) {
                                                                                                     _D('F:createwidget', 'I:creating widget');
       this.widget = $([
-        '<div id="tf">',
+        '<div id="tf" style="display:none">',
           '<div class="tf-header">',
             '<div id="tf-stream-nav">',
                '<a class="top" title="to the top" href="#" onclick="window.scrollTo(0,0); return false;"><i></i><b></b></a>'+
@@ -2110,11 +2119,12 @@ var TweetfilterPrototype = function() {
                 '<ul>',
                   '<li class="version">Tweetfilter '+this.version+'</li>',
                   '<li class="update"><a href="http://tweetfilter.netne.net" target="_blank">Visit website</a></li>',
-                  '<li class="support"><a href="http://flattr.com/thing/314573/Tweetfilter" target="_blank">',
-                     '<img src="http://api.flattr.com/button/flattr-badge-large.png" width="70" alt="Support Tweetfilter" title="Thanks for your support! <3" style="border:0" />',
-                   '</a></li>',
-                  '<li class="tweet"><a href="#">Tweet it!</a></li>',
-                  '<li class="help"><a href="http://tweetfilter.netne.net#usage" target="_blank">Help</a></li>',
+                  '<li class="support">',
+                    '<a class="tf-support flattr" href="http://flattr.com/thing/314573/Tweetfilter" title="Thank you! <3" target="_blank"><span>Support Tweetfilter</span></a>',
+                  '</li>',
+                  '<li class="support">',
+                    '<a class="tf-support tweet" href="http://twitter.com/share?lang=en&text=Tweetfilter%20%E2%99%A5%20&url=http%3A%2F%2Ftweetfilter.netne.net&via=tweetfilterjs" title="show some love :)"><span>Tweet</span></a>',
+                  '</li>',
                 '</ul>',
               '<div>',
             '</div>',
@@ -2308,7 +2318,7 @@ var TweetfilterPrototype = function() {
       }
       listitems[category].push('<li class="'+query.type+(!query.count ? ' notfound' : '')+(exclusivemode && $.inArray(query.id, this.exclusive) > -1 ? ' exclusive' : '')+'">'+
          '<span>'+
-           '<a data-queryid="'+query.id+'"'+(query.enabled ? ' class="checked"' : '')+'>'+
+           '<a data-queryid="'+query.id+'"'+(query.enabled ? ' class="checked"' : '')+' title="'+this.encodehtml(query.index)+'">'+
              '<b></b><span>'+this.encodehtml(query.label)+'</span>'+
              '<i id="tf-count-'+query.id+'">'+(query.count ? query.count : '--')+'</i>'+
            '</a>'+
@@ -2442,7 +2452,7 @@ var TweetfilterPrototype = function() {
       switch(name) {
         case 'filter': //anything that hides/shows tweets
           if (this.options['filter-disabled'] || this.stream.status !== 'ready' || this.stream.itemtype !== 'tweet') {
-            style.push('.tweet-actions > a.tf { display:none !important; }');
+            style.push('.tweet-actions > a.tf.menu { display:none !important; }'); //hide the "add to filter" dropdown in stream while disabled
             this.setcss(name, style.join("\n"));
             $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
                                                                                                     _D('F:refreshcss', 'W:suspending filter. stream itemtype: ', this.stream.itemtype, ', mode:', this.stream.mode, ', filter disabled:', this.options['filter-disabled']);
@@ -2486,14 +2496,14 @@ var TweetfilterPrototype = function() {
             }
             for (var q=0, query, qmax=this.queries.length; q<qmax && (query=this.queries[q]); q++) {
               matchcount = 0;
-              if (query.user && cs.filter.users.hasOwnProperty(query.search) && (matchcount=cs.filter.users[query.search].length) && matchcount) { //user filter: count tweets by this user
+              if (query.user && !query.regular && cs.filter.users.hasOwnProperty(query.search) && (matchcount=cs.filter.users[query.search].length) && matchcount) { //user filter: count tweets by this user
                 if (query.enabled && query.excluded && !exclusivemode) { //excluded do not count in exclusivemode
                   excluded = excluded.concat(cs.filter.users[query.search]);
                 } else if (query.enabled && (!exclusivemode || $.inArray(query.id, this.exclusive) > -1)) {
                   hidden = hidden.concat(cs.filter.users[query.search]);
                 }
                 query.count = matchcount;
-              } else if (!query.user && cs.filter.matches.hasOwnProperty(query.index) && (matchcount=cs.filter.matches[query.index].length) && matchcount) { //count tweets with match
+              } else if (cs.filter.matches.hasOwnProperty(query.index) && (matchcount=cs.filter.matches[query.index].length) && matchcount) { //count tweets with match
                 if (query.enabled && query.excluded && !exclusivemode) {
                   excluded = excluded.concat(cs.filter.matches[query.index]);
                 } else if (query.enabled && (!exclusivemode || $.inArray(query.id, this.exclusive) > -1)) {
@@ -2578,17 +2588,23 @@ var TweetfilterPrototype = function() {
             this.setcss(name, css.join("\n")); //friend status
           } else this.setcss(name, '');
           break;
+          
+        
         case 'layout':
          style = [
           '#tf { display:block !important; bottom: 0; margin-left: 586px; position: fixed; text-align:left; '+this.css3rounded('0 4px 0 0')+' font-family:Arial,"Helvetica Neue",Helvetica,sans-serif; background:#fff; position:fixed; bottom:0; z-index:1; width: 385px; '+this.css3shadow('2px', 'rgba(0, 0, 0, 0.3)')+' border:1px solid #bbb; border-bottom:0; }',
           '#tf * { padding:0; margin:0; list-style:none; color:@darktext; }',
+          //icon sprites
           ".tf-icon { background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAmCAYAAAA1MOAmAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyBpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNSBXaW5kb3dzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOkE2Rjc4MzQwN0E3MDExRTA5NjNDQzM0RkZBREY2OEM3IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOkE2Rjc4MzQxN0E3MDExRTA5NjNDQzM0RkZBREY2OEM3Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6QTZGNzgzM0U3QTcwMTFFMDk2M0NDMzRGRkFERjY4QzciIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6QTZGNzgzM0Y3QTcwMTFFMDk2M0NDMzRGRkFERjY4QzciLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz7ehNtFAAACu0lEQVR42uxXMYgaURAd5QrP7koDkkIsRNBCrvLEBC6VSakQCxthLdMIuXLLC1pcShdsBC2Mdjnw4CAIsbrYKFaiJAhneWXsfmY2f834b89dQzjC4cAw//+d99+f+W/XO4+maYcA8Br9Dv0aNi2KnpDjSa1WG/KHpVLpCEMNfW4Yxhl/9vzdlywGTU4/fb94YRzgICA3BYWMSN6w+U/0oXIYysnK8Rkj0uQhLKNCTDJuJzLSpqdWRehLGR807NB7OTSuAM6tiuReFEElO2XjQ0Y8B2c7Z+Mji/jHx5e/u3Uh7pFd21RGLX4mK7vbQma10WDEWWxpQlY2V8m+2mxiCSRgtcPOUCAf/tzZ23V32R45r3LaE1kFt1vZRrtWzvmdoSeU50PZLbNjFtmE3ZnGqrFa27BRIlUzZ9VS674hocZbi3f2Ct3gAvksSRNMqrdSJEsHYZRkhRqrdihFsnFAjxACHsu88Ij2dMkO5Ac1g+HYIfcGP8SX6mKr1RL9fn8rMJ1OQz6f99D7kel0OjoJZZtTDuXytWazKXBduMAKyiUyRyLL1Vycix2wYq/Gf0MWDoeh2+3qTomUQ7ncJFa4wArKpc9VplqtHk+nU/NBMpmEQqGwJm80GvpgMDA3LpfLN7i0IX/ECgXrYVjBsB5LLSRpUppeqVR0rjo51mXOVsUhVnCFqmq17oxOS9XodHo6Cb7ovLW6WpGd0eklVrgVyCUnVO9pF0IVu/+J2ZP9Rz+e9XpdXywWsFw+/EdUIBCAYDAIxWJx47OGWLED1uMdjUYQj8chFAqB13u/UFpPpVJAeartivWuVivo9Xrg9/shEomAz+czH1CMRqNmbLfbQHmq7YpdH2c8HpuLsVjMnFOk+WQycbwLt9iN2mezGdAd5HI5M9LcrbnBqv/FmJdNpf+NOWGf7nv2S4ABAKHzBuy2uJFlAAAAAElFTkSuQmCC') !important; }",
           ".tf-spin { background: url('data:image/gif;base64,R0lGODlhDAAMAPcAAP////////////r6+vHx8evr6/39/f////////////////////////////Ly8tLS0ry8vLe3t/j4+P7+/v39/f7+/v////////////Ly8sfHx7q6us/Pz+Li4v39/f7+/vv7+/v7+/7+/v////v7+9XV1by8vOPj4/39/f////////////39/fj4+Pr6+v7+/vLy8sTExNPT0/39/f////////////////////n5+fb29v39/e3t7b29veXl5f////////////////////////r6+vHx8fv7++7u7sDAwObm5v////////////////////////j4+O7u7vr6+vT09MvLy9nZ2f39/f////////////////7+/vLy8u7u7vv7+/v7+93d3crKyurq6v39/f////////7+/vT09Ojo6PHx8f7+/v////X19dbW1s/Pz+Dg4O3t7fDw8Onp6eLi4urq6vr6+v////////////X19eLi4tfX19TU1NfX1+Dg4Ozs7Pr6+v////////////////////z8/Pf39/Pz8/T09Pj4+P39/f///////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAQKAAAAIf4aQ3JlYXRlZCB3aXRoIGFqYXhsb2FkLmluZm8AIf8LTkVUU0NBUEUyLjADAQAAACwAAAAADAAMAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////7+/vy8vLr6+vr6+vx8fH6+vr////////////////////z8/PX19fDw8O4uLi1tbW+vr7S0tLx8fH////////////09PTPz8/CwsLU1NTk5OTi4uLPz8+3t7fQ0ND////////7+/vb29vFxcXn5+f9/f3////////8/Pzn5+f29vb////////19fXNzc3a2tr9/f3////////////////////+/v79/f3////w8PDIyMjp6en////////////////////////+/v76+vr+/v7x8fHLy8vr6+v////////////////////////9/f34+Pj9/f329vbV1dXh4eH+/v7////////////////////5+fn39/f9/f38/Pzk5OTW1tbv7+/+/v7////////+/v75+fny8vL4+Pj+/v7////39/ff39/a2tro6Ojz8/P09PTx8fHt7e3y8vL8/Pz////////////4+Pjp6enh4eHg4ODk5OTq6ury8vL8/Pz////////////////////9/f35+fn39/f4+Pj6+vr9/f3///////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////7+/v09PTu7u7t7e3z8/P7+/v////////////////////19fXe3t7Nzc3CwsK/v7/GxsbW1tby8vL////////////29vbY2NjMzMzb29vn5+fm5ubV1dW+vr7IyMjy8vL////8/Pzi4uLR0dHr6+v9/f3////////9/f3k5OS6urrT09P6+vr39/fX19fh4eH9/f3////////////////9/f3Pz8+9vb3x8fHz8/PU1NTu7u7////////////////////////j4+O3t7fr6+v09PTX19fw8PD////////////////////////9/f34+Pj9/f34+Pjg4ODp6en+/v7////////////////////+/v7////////9/f3r6+vh4eH09PT+/v7////////////9/f36+vr9/f3////////5+fnp6enm5ubw8PD39/f5+fn39/f39/f6+vr+/v7////////////6+vrw8PDs7Ozs7Ozv7+/09PT5+fn+/v7////////////////////+/v77+/v6+vr7+/v8/Pz+/v7///////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////8/Pz29vbx8fHw8PD19fX7+/v////////////////////39/fk5OTW1tbMzMzJycnOzs7c3Nz09PT////////////4+Pjg4ODW1tbh4eHr6+vq6ura2trGxsbPz8/z8/P////9/f3p6enb29vv7+/9/f3////////9/f3n5+fDw8PY2Nj6+vr5+fnh4eHo6Oj+/v7////////////////9/f3U1NTDw8Py8vL29vbf39/y8vL////////////////////////k5OS3t7fr6+v39/fi4uL09PT////////////////////////i4uK1tbXr6+v6+vrp6enw8PD+/v7////////////////8/PzOzs69vb3x8fH9/f3y8vLr6+v39/f+/v7////////////5+fm+vr7R0dH6+vr////7+/vx8fHv7+/29vb7+/v9/f38/Pz9/f3x8fHw8PD////////////8/Pz29vb09PT19fX4+Pj7+/v9/f3////////////////////////+/v79/f38/Pz9/f3+/v7///////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////9/f34+Pj19fX09PT39/f8/Pz////////////////////6+vrs7Ozh4eHa2trX19fZ2dnk5OT29vb////////////6+vrq6urj4+Pq6urx8fHv7+/j4+PT09PZ2dn19fX////+/v7x8fHn5+f09PT+/v7////////+/v7s7OzOzs7e3t77+/v7+/vs7Ozw8PD+/v7////////////////9/f3c3NzNzc309PT6+vrs7Oz39/f////////////////////////n5+fCwsLu7u77+/vv7+/5+fn////////////////////////m5ua/v7/t7e38/Pzz8/P39/f////////////////////9/f3U1NTFxcXz8/P+/v74+Pj29vb8/Pz////////////9/f3j4+O9vb3W1tb7+/v////9/f35+fn5+fn9/f3////19fXOzs65ubnHx8fy8vL////////////+/v78/Pz8/Pz////r6+u8vLzS0tLy8vL////////////////////////+/v7////6+vrx8fH6+vr///////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////9/f37+/v4+Pj39/f5+fn9/f3////////////////////8/Pzz8/Ps7Ozm5ubj4+Pk5OTr6+v4+Pj////////////8/Pzy8vLu7u7y8vL19fX09PTr6+vd3d3i4uL4+Pj////+/v739/fx8fH5+fn+/v7////////+/v7x8fHZ2dnm5ub8/Pz9/f329vb39/f////////////////////+/v7j4+PY2Nj29vb9/f329vb8/Pz////////////////////////s7OzOzs7x8fH9/f34+Pj9/f3////////////////////////q6urKysrw8PD+/v77+/v8/Pz////////////////////9/f3b29vOzs719fX////9/f39/f3////8/Pz////////9/f3n5+fGxsbc3Nz7+/v////////9/f3i4uLOzs7h4eHi4uLT09PCwsLPz8/09PT////////////8/PzT09O8vLy0tLS2trbCwsLX19fz8/P////////////////////6+vrx8fHq6urr6+vy8vL7+/v///////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////+/v79/f37+/v6+vr7+/v+/v7////////////////////+/v75+fn19fXx8fHu7u7u7u7y8vL6+vr////////////+/v76+vr39/f4+Pj6+vr4+Pjy8vLp6enr6+v6+vr////////8/Pz6+vr9/f3////////////+/v729vbk5OTt7e39/f3+/v78/Pz9/f3////////////////////+/v7r6+vj4+P5+fn////////////////////////////////////x8fHa2tr19fX6+vrr6+v09PT////////////////////////v7+/W1tb09PTw8PC7u7vOzs79/f3////////////////+/v7i4uLZ2dn39/f6+vrR0dG4uLji4uL9/f3////////9/f3r6+vR0dHj4+P8/Pz////x8fHHx8e7u7vT09Pl5eXm5uba2trLy8vY2Nj29vb////////////y8vLV1dXDw8O9vb3AwMDLy8vd3d319fX////////////////////7+/vy8vLt7e3u7u709PT7+/v///////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgAh+QQECgAAACwAAAAADAAMAIf////////////////+/v7+/v79/f39/f3+/v7////////////////////////+/v78/Pz6+vr4+Pj39/f4+Pj9/f3////////////x8fHy8vL+/v7+/v7+/v79/f35+fnz8/P09PT8/Pz////6+vrR0dG+vr75+fn////////////////5+fnv7+/09PT+/v7x8fG9vb3Ozs78/Pz////////////////+/v7y8vLt7e37+/vq6uq0tLTh4eH////////////////////////29vbm5ub4+Pjr6+u2trbi4uL////////////////////////09PTj4+P39/fy8vLCwsLT09P9/f3////////////////+/v7q6urk5OT5+fn7+/vX19fAwMDm5ub9/f3////////9/f3w8PDc3Nzq6ur9/f3////z8/PNzc3ExMTZ2dnp6enr6+vh4eHX19fh4eH4+Pj////////////09PTb29vMzMzIyMjLy8vW1tbl5eX39/f////////////////////7+/v09PTw8PDx8fH29vb8/Pz///////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIpQABBBAwgEABAwcQJFCwgEEDBw8gRJAwgUIFCxcwZNCwgUMHDx9AhBAxgkQJEydQpFCxgkULFy9gxJAxg0YNGzdw5NCxg0cPHz+ABBEyhEgRI0eQJFGyhEkTJ0+gRJEyhUoVK1ewZNGyhUsXL1/AhBEzhkwZM2fQpFGzhk0bN2/gxJEzh04dO3fw5NGzh08fP38ABRI0iFAhQ4cQJVK0iFEjR48CAgA7') no-repeat top center !important; }",
+          ".tf-support { background: url('data:image/gif;base64,R0lGODlhRgAeAPf/AKTGfNHax+HosqG8zfr+/8XbpXimvOHx+tHhpn+nTe3z5fz+/3GmMf7Tc5S1bCKazv/kp4WpS+fw3JO+X4ypbYSqVWGTqqTBgZXAYvy6N9nq947D25S/YKzR5wA7ZxiTyXiWUOLp2Iy4Vr3ToYuwxKrMgfL27pu5dLXLm67IkKzCkbXN2tXn9IGoUf3GdrTSkQJWgqnP5o6xY/q0P0mmzZ3Db/vFan+oUFaNp466WKi9i+31+cXa5zp7mKvGiue0jPq3VJa6a+Xv+bzXm93u9O7s8U6Iop+2ft3p0Pb4/ZClcvT57uDt0cPSsOHu9v79+liSrvLu9/SnT4muXOnx+pK2x/b9/vL5/H6pT+n4+/z69Ovq7un0+bjR34KuwzmcxoSlW77Oqoq3U4usVJm4etrp8yFoiNvqyQeCt6nHabHNZM7dvrnMpnulSYOpVNPi6vT5/Za7RvioP2euz4WrVtyMR9h9O5G8Xf7RbPr4/fr6+X6tR97i2tXhxdXm8Z+8efrIj/D2+uTi34CpvNjd0AJ5rpnEZczh65C9WNPl8uXw957Cc9/x+Rhjhpq7zLHGlPb7/hh1nNzp8wWNxpW0cKfO53WfP+v2/dniz+rw9kOCn5G7XoeyUt7s89fn9ebj4a7N26fF05qxeYKwTYmwWbLRjZy0e5O/Xd/m15GyZ5a9zoesWbTNlafBiubs3tjn8ZK8XqLO6H+gVpO/X/D35/Tw+arP5+jn6p3G4Pf5/d6deilxj/vXqp+3f/38/FyjvbjTeaDB0I+7W/Py3d+IOPSbPa/OiIyjbf7155nAavP4+/X5/e34/oOqU+CddISuUt7t92GYstvs9c7awMHX4UuTrebrwv737P7rxiZvj//wz5G+XZG9XbnPn7fUlIClROrz+6jCh8jWtczVu8/eteby+eb0+vb08fT6/yF3nPj8/vzASQ6QxvPw+KTESPD4//f2+9nkw5/AScbLqm+guDmBoQBkmr7HorbIpC+g0XqYUYatV4SkWJG8Xv///////yH/C1hNUCBEYXRhWE1QPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS4wLWMwNjAgNjEuMTM0Nzc3LCAyMDEwLzAyLzEyLTE3OjMyOjAwICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdFJlZj0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlUmVmIyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ1M1IFdpbmRvd3MiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RkIxOEE2RTc5QTgxMTFFMDlDOTFEQkZERTlFODRFOEIiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RkIxOEE2RTg5QTgxMTFFMDlDOTFEQkZERTlFODRFOEIiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpGQjE4QTZFNTlBODExMUUwOUM5MURCRkRFOUU4NEU4QiIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpGQjE4QTZFNjlBODExMUUwOUM5MURCRkRFOUU4NEU4QiIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PgH//v38+/r5+Pf29fTz8vHw7+7t7Ovq6ejn5uXk4+Lh4N/e3dzb2tnY19bV1NPS0dDPzs3My8rJyMfGxcTDwsHAv769vLu6ubi3trW0s7KxsK+urayrqqmop6alpKOioaCfnp2cm5qZmJeWlZSTkpGQj46NjIuKiYiHhoWEg4KBgH9+fXx7enl4d3Z1dHNycXBvbm1sa2ppaGdmZWRjYmFgX15dXFtaWVhXVlVUU1JRUE9OTUxLSklIR0ZFRENCQUA/Pj08Ozo5ODc2NTQzMjEwLy4tLCsqKSgnJiUkIyIhIB8eHRwbGhkYFxYVFBMSERAPDg0MCwoJCAcGBQQDAgEAACH5BAEAAP8ALAAAAABGAB4AAAj/AHHZ6kCwoMGDCBMq7GAL17+HECNKnEjxXyV/GDNq3Mixo8eMlSqKHPmww8eTKD92IMlyosllC/wlyQXJn68d6pZxzMWzp0+fMAnwTOJvZcuj/0wSyLQjY5d0oDBKIuEoGIk3/pZBWkYzl7qcWtVBIqCOwIJlcIoiPWrLH4FOkaLpCVTIXj2Mr6A0ggEFa0wCgP2hw0jA3xWM9AwYDuTP1tqWMfw13QAjEo0PD2AEcxKzSjR/OA45yeaPBIkVZnpIA23msxkPJCT7i/GYZQwrXJj5o4EG8wM0mgsbMALaiyoPnYwMyhbIQA8vPfw1cmQAir9L5azQrj0yhrpEijDm/3vwYNIXRYq4+Bvub4WmHlV6aKIGg4QBL0Z6OILSJbE/9Ms4xp1ItkAiRDW/zPHBB5MUEhU4TvgTTXTSkeYBPf6YoQoJPHTRSBeDEEAPDDy8I4QyAg5IUQxc7BCIgux8QAM1vhBhYxbUrHCJFaFQ408VZfjzBg4WHOJPKJoMsoM5FlTBDBE7bKfiRJVQUUZ4gTihSCDqaCDJl6+8Y0UZr6gzpj/g+DGYP8wEiRE0VLhVRhmZhDTlRDFQoYEnGjghhBDQ8KnBoHuyMKgnhrLAJwuJJLIoo4UaqgEVUt4JUSyMHKDpAYxkuumnoIYqKqiM2GkpRCvgMsCqrLbq6quwxv86QCixnBqRAiroYMoRvPbq6xGmgMHPsMQWa+yxyCar7LE6mHBECCn5Q4shwvRj7bXYZqvtttx2my0dOvSSkTYNlGsuHhBgNO02s7TLAQbwvtvuvLNgwEG79tI7b77y7nvvvP26uwk/R2CEzToZJKxwAwIIIK0h3EwwAQcijLLHKCLscYfEHI/CCQZ37CECBxxLHLIIGOSwhzAkc7OHGCRPrDLLEs/SD8EY2TDDDDbYAMQMLlijBgIPR8yBGFM8wkYKi7BhLwdQT4CCD4gkwwYAiEwcNQZXI9J0MqfU2wQA3EC9TQ1sJBPxBDbzI+4TQMhhwzXIAOHCMMC4Q/S0EZ//4oArGEkwhD/JJHDDDViI8UQfltTgTwpt5IDFDfuc7Q8rlrzgTxBtYLFJK4uMcngbxvhTQg41D2yKP09IIQcgrPOihQJqyLM3xBPkQI4vKDyzx+ClY4RKELRgFDwtQaDizxliOO6PApqL4880yegxRDh6+LNEKaajXi8s/CgBzzlSFAN7RgqkEcftEYvAhD9hTD04AN08Mo0/3ihASwEl+MPEEN7wBxK8kQPH/U9zWjiDP0o3BAngihXcK0HWNpEDUuhDCVv4RB2I8YM8xANwElBfAR52B1iIAQkZERzhWrEGTOBvCWtggON8wIAALkIMd3DcCxiguRH0r3QF8IEr/9ZAif4BgBP72Acd3AACJRRBEHWwww/EEYFxbKEJY/jGI6JACFJUYB9tQIIJ6DAFLKDAHxfwBxvw8TgFuIICDpgeGFKwuRY0IxVqlIUP/CGDNKZxBLKgQACecAJMOKAFFfgiE534CTs4Yx6r+MYJ/pDFBIShCISYQjPoEEYTJKACbTjjCQCHkRRIzx8ngJYE6EgJO04BWgrYYyr86A8UoNAffUgFPmSwSTossYlP1MU9sGCJYhqTEoLYQiY32YxJVoAOd7wAHWZ5gQvIgA7VXEUf/9DHKTzTDdvs4yqmYM0LpOIE2ZQBK3jpy1+aIgq3IAQZUkGJetZTBXy4RTw16W/LFiSgnW74pz8TkIBmVICgdPDnDZrxyXYqlKFuCChEB2rQhvpyHy2QhSkCEIUitKMWIA1pR4sQBT6Qgg5JTKlKV8rSlrL0oi5VaUL1oQNXmEIUSsipTnea02Po46dADapQh0pUooKgqEMFgSyaFRAAOw==') no-repeat 0 0; }", 
+          ".tf-logo { background: url('data:image/gif;base64,R0lGODlhFAAeANUAAMPY7pa74Yyx1luV0IClyy54w/D1+/z8/Onp6T2ByNra2oar0dLi8kyLzObm5tjY2Ovr6zh8w4mu1OHs9mqe1Pb29t3d3b3H0qXF5VKMyPHx8ZizzuDg4L/U6sXU5fn5+Xam1oiy3fT09NXV1R9uv////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAUAB4AAAazwJJwSCwaj0MApUBqDgxIoWHQrDqjk4R1izQ0ttxjAGwNCSuKkUJTYm4bg0FAeHiM7qPOtgAwivB3AltzfoAjglZ9hYCIVYpFf4ASW49EkXgEWyABnAEMQpd3mWRVGCWhI6OkJAWnhqqrroCwZAmyeAurrJ+ojU0BAMEAULeBlEe9x4u4ykUHhhdWtkgchhsRJBkeUaiGEFEOhoAKUSXh4iMP5SUQ6AjrJR8IFngIB/D4QkEAOw==') no-repeat 0 0; }", 
+          
           '#tf a[data-option] { cursor:pointer; }',
           '#tf.collapsed { height: 70px; }',
+          '#tf.collapsed #tf-stream-nav { width: 70px; }', //webkit fix
           
           '#tf-stream-nav { float:left; background:#fff; '+this.css3shadow('2px', 'rgba(0, 0, 0, 0.1)', '-1px', '-1px')+' border:1px solid #bbb; border-color: #bbb #fff #bbb #bbb; border-style: solid none solid solid; float: left; margin: -1px 0 0 -21px;  }',
-          '#tf.collapsed #tf-stream-nav { width: 70px; }', //webkit fix
           '#tf-stream-nav a { display:block; width:20px; height:20px; text-indent:-50px; overflow:hidden; position:relative; }',
           '#tf-stream-nav a i { display:block; width:0; height:0; border: 5px solid #fff; position:absolute; left: 4px; }',
           '#tf-stream-nav a b { display:block; width:4px; height:4px; background:@link; position:absolute; left: 7px; }',
@@ -2703,7 +2719,10 @@ var TweetfilterPrototype = function() {
           '#tf div.about ul li { float:right; margin-left: 8px; font-size: 11px; }',
           '#tf div.about ul li.version { float:left; margin-left:0; }',
           '#tf div.about ul li a { color:@link; text-decoration:none; }',
+          '#tf div.about ul li a.tweet { display:inline-block; height:15px; width:42px; overflow:hidden; text-indent:-100px; }',
+          '#tf div.about ul li a.flattr { display:inline-block; height:15px; width:68px; background-position:0 -15px;  overflow:hidden; text-indent:-100px; }',
           '#tf div.about ul li a:hover { text-decoration:underline; }',
+          
           '#tf div.about a.pledgie { font-size:10px; display:inline-block; line-height:14px; padding:0 5px; background: #01A163;'+this.css3gradient('#01A163', '#077D4D', true)+this.css3rounded('2px')+' color:#fff; font-weight:bold; font-family:Arial,Helvetica,sans-serif; }',
           '#tf-scroll { margin:5px 10px; overflow:auto; max-height:160px; display:none; }',
           
@@ -2968,7 +2987,10 @@ var TweetfilterPrototype = function() {
       }
     }
     funcname = that._debuggroup.substr(9);
-    if (that._debuglevels.indexOf(level) > -1 && (that._debugfunctions.length === 0 || that.inarray(funcname, that._debugfunctions) > -1)) {
+    if (that._debuglevels.indexOf(level) > -1 && 
+         (that._debugfunctions.length === 0 || that.inarray(funcname, that._debugfunctions) > -1) &&
+         (that._debugskipfunctions.length === 0 || that.inarray(funcname, that._debugskipfunctions) === -1)) 
+    {
       if (!that._debuggrouped && that._debuggroup) {
         if (typeof args[0] === 'object') {
           args.splice(0, 0, ''); //insert dummy element to avoid string conversion of object to debug
