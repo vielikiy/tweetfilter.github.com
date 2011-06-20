@@ -21,7 +21,7 @@ var TweetfilterPrototype = function() {
     this.debug = false; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will slow down the script.
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs 
     this._debuglevels = 'DEWIL'; //each char is a debug level - include in output: D=Debug, E=Error, W=Warning, I=Info, L=Log, empty string = show only function headers
-    this._debugfunctions = ['parselinks']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = []; //which functions to debug (whitelist). empty array = debug all functions
     this._debugskipfunctions = ['checktweet']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
     
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
@@ -219,8 +219,8 @@ var TweetfilterPrototype = function() {
         this.status.initialized = true;
         this._poll();
         return true;
-      }                                                                                             else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
-    }                                                                                               else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
+      } else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
+    } else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
                                                                                                     _D('F:initialize', 'reinitialize, ', this.initretries, 'retries left');
     if (this.initretries--) {
       setTimeout(function() {
@@ -258,11 +258,12 @@ var TweetfilterPrototype = function() {
       return false;
     } 
     if (!cs.hasOwnProperty('filtered')) {
-      cs.bind('didTweet doneLoadingMore streamEnd', twttr.bind(this, function(e) { this.poll('parseitems'); }));
-      cs.$node.delegate('a.tf', 'mousedown click', twttr.bind(this, function(e) { this.tweetactionsclick(e); })) 
-              .delegate('.tf-via > a', 'click', twttr.bind(this, function(e) { this.tweetclickvia(e); }))
-              .delegate('div.tweet-text', 'mousedown', twttr.bind(this, function(e) { this.tweettextmousedown(e); }))
-              .delegate('ul.tf-menu', 'mouseleave', twttr.bind(this, function(e) { this.filtermenuleave(e); }));
+      cs.bind('didTweet doneLoadingMore streamEnd', twttr.bind(this, function(e) {this.poll('parseitems');}));
+      cs.$node.delegate('a.tf', 'mousedown click', twttr.bind(this, function(e) {this.tweetactionsclick(e);})) 
+              .delegate('.tf-via > a', 'click', twttr.bind(this, function(e) {this.tweetclickvia(e);}))
+              .delegate('div.tweet-text', 'mousedown', twttr.bind(this, function(e) {this.tweettextmousedown(e);}))
+              .delegate('div.tweet-text', 'mouseup click', twttr.bind(this, function(e) {this.tweettextmouseup(e);}))
+              .delegate('ul.tf-menu', 'mouseleave', twttr.bind(this, function(e) {this.filtermenuleave(e);}));
       cs.filtered = true;
     }
     if (this.stream.key !== cs._cacheKey) {
@@ -508,7 +509,7 @@ var TweetfilterPrototype = function() {
         this.polling.timeoutid = -1;
         this._poll();
       }), this._heartbeat);
-    }                                                                                               else _D('F:_breathe', 'D:NOT repolling tick '+this.polling.tick+', already queued!');
+    } else _D('F:_breathe', 'D:NOT repolling tick '+this.polling.tick+', already queued!');
   };
   
   Tweetfilter.prototype.refreshuser = function() {
@@ -616,7 +617,7 @@ var TweetfilterPrototype = function() {
           enabled: this.queries[q].enabled
         });
       }
-    }                                                                                                    _D('F:savesettings', settings);
+    }_D('F:savesettings', settings);
     this.setvalue(':TWEETFILTER:', settings);
   };
 
@@ -634,7 +635,7 @@ var TweetfilterPrototype = function() {
             if (typeof component['callback'] === 'function') {
               component.callback(this, container);
             }
-          } else {
+          }else {
             allfound = false;
           }
         }
@@ -1161,7 +1162,7 @@ var TweetfilterPrototype = function() {
           } else 
           if (query.exact) {
             ismatch = this.findexactmatch(tweet.name, query.search);
-          } else {
+          }else {
             ismatch = tweet.name.indexOf(query.search) > -1;
           }
         } else 
@@ -1172,7 +1173,7 @@ var TweetfilterPrototype = function() {
           } else 
           if (query.exact) {
             ismatch = this.findexactmatch(tweet.source, query.search);
-          } else {
+          }else {
             ismatch = tweet.source.indexOf(query.search) > -1;
           }
         } else 
@@ -1203,7 +1204,7 @@ var TweetfilterPrototype = function() {
           } else cs.filter.matches[query.index] = [tweet.id];
         }
       }
-    }                                                                                               else _D('F:checktweet', 'W:stream is not ready!');
+    } else _D('F:checktweet', 'W:stream is not ready!');
   };
   
   Tweetfilter.prototype.refreshfriendscss = function(instantly) {
@@ -1571,38 +1572,43 @@ var TweetfilterPrototype = function() {
     return false;
   };
 
+  Tweetfilter.prototype.getselection = function() {
+    var selection = window.getSelection();
+    return selection ? selection.toString().replace(/^[\s\?\.\,\;\)\("'\:\-\!]+/g,'').replace(/[\s\?\.\,\;\)\("'\:\-\!]+$/g,'').replace(/\r?\n+/g, ' ') : false;
+  }
+  
+  Tweetfilter.prototype.removeselection = function() { 
+    window.getSelection().removeAllRanges(); 
+  }
+  
+  Tweetfilter.prototype.tweettextmouseup = function(e) {
+                                                                                                    var f=_F('tweettextmouseup');
+                                                                                                     _D(f, e);
+    if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
+      if (window.getSelection().toString().length) {
+                                                                                                     _D(f, 'I:found selection!');
+        //e.preventDefault();
+        e.stopImmediatePropagation();
+        return false;
+      } else _D(f, 'W:no selection');
+    }
+    return true;
+  }
+  
   Tweetfilter.prototype.tweettextmousedown = function(e) {
+                                                                                                    var f=_F('tweettextmousedown');
+                                                                                                    _D(f, e);
     if (e.which === 1) {
-                                                                                                    _D('F:tweettextmousedown', e);
-      if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).hasClass('tweet-text')) {
-        var selection;
-        if (window.getSelection) {
-         selection = window.getSelection();
-        } else if (document.getSelection) {
-         selection = document.getSelection();
-        } else if (document.selection) {
-         selection = document.selection.createRange().text;
-        }
-        var selected = selection.toString().replace(/^[\s\?\.\,\;\)\("'\:\-\!]+/g,'').replace(/[\s\?\.\,\;\)\("'\:\-\!]+$/g,'').replace(/\r?\n+/g, ' ');
-        if (selected.length) {
-                                                                                                    _D('F:tweettextmousedown', 'D:found selection', selection)
-          $('ul.tf-menu').remove();
-          var menu = $('<ul class="tf-menu selection drop-down">'+
-                       '<li class="selection"><i>+</i> <a class="tf add" data-query="'+selected+'" title="filter tweets containing '+selected+'">'+selected+'</a></li>'+
-                     '</ul>').css({'position':'fixed', 'top':(e.clientY-10)+'px', 'left': (e.clientX-10)+'px'});
-          if (window.getSelection || document.getSelection) {
-            if (selection.collapse) {
-              selection.collapse();
-            } else if (selection.removeAllRanges) {
-              selection.removeAllRanges();
-            }
-          } else if (document.selection) {
-            selection.empty();
-          }
-          $(e.target).closest('div.stream-item').append(menu);
-          e.stopPropagation();
+      if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
+        var selected;
+        if ((selected = this.getselection())) {
+                                                                                                    _D(f, 'adding new query', (e.which === 2 ? '-' : '') + selected);
+          this.addquery((e.which === 2 ? '-' : '') + selected, true, e.which === 2);
+          this.removeselection();
+          e.stopImmediatePropagation();
+          //e.preventDefault();
           return false;
-        }
+        } else _D(f, 'W:no selection');
       }
     }
     return true;
@@ -1677,7 +1683,7 @@ var TweetfilterPrototype = function() {
                   },
                   origin: "Tweetfilter "+this.version
                 }).open().focus();        
-              }                                                                                     else _D('F:filter_actions_mousedown', 'W:item', itemid, 'not found in items cache!');
+              } else _D('F:filter_actions_mousedown', 'W:item', itemid, 'not found in items cache!');
 
               break;
             case 'menu':
@@ -1688,7 +1694,7 @@ var TweetfilterPrototype = function() {
               break;
             case 'add':
                                                                                                     _D('F:filter_actions_mousedown', 'add to filter', e.target);
-              if (e.which < 3) {
+              if (e.which <3) {
                 this.addquery((e.which === 2 ? '-' : '') + e.target.getAttribute('data-query'), true, e.which === 2);
                 $('ul.tf-menu').remove();
                 e.stopImmediatePropagation();
@@ -1871,7 +1877,7 @@ var TweetfilterPrototype = function() {
             $('a.twitter-timeline-link[data-shortened-url="'+url+'"]').removeClass('expanded'); //multiple shortened links
           }
         }
-      } catch(e) {
+      }catch(e) {
                                                                                                     _D('F:twttrajaxevent', 'W:failed to parse url resolved response!');
       }
       this.poll('parselinks');
@@ -1953,7 +1959,7 @@ var TweetfilterPrototype = function() {
                                                                                                     _D(f, 'W:stream is not ready');
             return false;
           }
-        }                                                                                           else _D(f, 'W:stream item not found!');
+        } else _D(f, 'W:stream item not found!');
       }
     }
                                                                                                     _D(f, 'check tweets', checktweets);
@@ -2071,7 +2077,7 @@ var TweetfilterPrototype = function() {
               '<ul class="checks">',
                 '<li><a data-option="skip-mentionsme" class="filter" title="skip tweets mentioning me"><b></b>skip mentioning me</a></li>',
                 '<li><a data-option="skip-me" class="filter" title="skip tweets written by me"><b></b>skip my posts</a></li>',
-                '<li><a data-option="add-selection" class="filter" title="show add selection menu"><b></b>add selection menu</a></li>',
+                '<li><a data-option="add-selection" class="filter" title="add selected text to filter after click"><b></b>add selection to filter</a></li>',
                 '<li><a data-option="highlight-mentionsme" title="highlight tweets mentioning me"><b></b>highlight mentioning me</a></li>',
               '</ul>',
             '</div>',
@@ -2503,7 +2509,7 @@ var TweetfilterPrototype = function() {
                   hidden = hidden.concat(cs.filter.users[query.search]);
                 }
                 query.count = matchcount;
-              } else if (cs.filter.matches.hasOwnProperty(query.index) && (matchcount=cs.filter.matches[query.index].length) && matchcount) { //count tweets with match
+              }else if (cs.filter.matches.hasOwnProperty(query.index) && (matchcount=cs.filter.matches[query.index].length) && matchcount) { //count tweets with match
                 if (query.enabled && query.excluded && !exclusivemode) {
                   excluded = excluded.concat(cs.filter.matches[query.index]);
                 } else if (query.enabled && (!exclusivemode || $.inArray(query.id, this.exclusive) > -1)) {
