@@ -25,7 +25,7 @@ var TweetfilterPrototype = function() {
     this._debugskipfunctions = ['checktweet']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
     
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-    this.version = '1.2b'; //current script version
+    this.version = '1.2'; //current script branch
 
     this.options = { /* default option settings */
       /* widget options */
@@ -203,7 +203,11 @@ var TweetfilterPrototype = function() {
         }).delegate('#search-query', 'blur', function() {
           $('div#top-stuff').attr('data-focused', '0');
         });
-        
+        //don't show hidden topbar when hovering a message notification
+        $('#message-drawer').bind('mouseenter', function(e) { 
+          e.stopPropagation(); e.preventDefault();
+          return false; 
+        });
         window.scrollTo(0,0); //scroll to the top
         twttr.router.bind('routed', function() { 
           that.refreshfiltercss();
@@ -219,8 +223,8 @@ var TweetfilterPrototype = function() {
         this.status.initialized = true;
         this._poll();
         return true;
-      } else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
-    } else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
+      }                                                                                             else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
+    }                                                                                               else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
                                                                                                     _D('F:initialize', 'reinitialize, ', this.initretries, 'retries left');
     if (this.initretries--) {
       setTimeout(function() {
@@ -590,7 +594,6 @@ var TweetfilterPrototype = function() {
     this.savesettings(imported);
     if (typeof imported !== 'undefined') {
       location.reload(true);
-//      this.showmessage('Tweetfilter settings imported.<br /><a href="javascript:(function() { location.reload(true); return false;})();">Click here to refresh the page.</a>', {resident:true});
     }
   };
 
@@ -758,7 +761,6 @@ var TweetfilterPrototype = function() {
         refresh = ['filter'];
         this.poll((status ? 'add' : 'remove') +'class', [option]);
       break;
-//      case 'add-selection': /* show add to filter menu after simple text selection in tweets */
       case 'expand-new': /* expand new tweets */
         if (status) {
           var newtweetsbar = $('div#new-tweets-bar');
@@ -1574,7 +1576,8 @@ var TweetfilterPrototype = function() {
 
   Tweetfilter.prototype.getselection = function() {
     var selection = window.getSelection();
-    return selection ? selection.toString().replace(/^[\s\?\.\,\;\)\("'\:\-\!]+/g,'').replace(/[\s\?\.\,\;\)\("'\:\-\!]+$/g,'').replace(/\r?\n+/g, ' ') : false;
+    
+    return selection ? selection.toString().replace(/<\S[^><]*>/g, '').replace(/\r?\n+/g, ' ') : false;
   }
   
   Tweetfilter.prototype.removeselection = function() { 
@@ -1587,7 +1590,6 @@ var TweetfilterPrototype = function() {
     if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
       if (window.getSelection().toString().length) {
                                                                                                      _D(f, 'I:found selection!');
-        //e.preventDefault();
         e.stopImmediatePropagation();
         return false;
       } else _D(f, 'W:no selection');
@@ -1598,15 +1600,14 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.tweettextmousedown = function(e) {
                                                                                                     var f=_F('tweettextmousedown');
                                                                                                     _D(f, e);
-    if (e.which === 1) {
+    if (e.which <3) {
       if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
         var selected;
         if ((selected = this.getselection())) {
                                                                                                     _D(f, 'adding new query', (e.which === 2 ? '-' : '') + selected);
-          this.addquery((e.which === 2 ? '-' : '') + selected, true, e.which === 2);
+          this.addquery((e.which === 2 ? "-'" : "'") + selected, true, e.which === 2);
           this.removeselection();
           e.stopImmediatePropagation();
-          //e.preventDefault();
           return false;
         } else _D(f, 'W:no selection');
       }
@@ -1623,7 +1624,6 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.tweetactionsclick = function(e) {
     switch(e.type) {
       case 'mousedown':
-       // alert('c');
         if (e.which !== 1) return true; 
         //e.stopImmediatePropagation();
         break;
@@ -1683,7 +1683,7 @@ var TweetfilterPrototype = function() {
                   },
                   origin: "Tweetfilter "+this.version
                 }).open().focus();        
-              } else _D('F:filter_actions_mousedown', 'W:item', itemid, 'not found in items cache!');
+              }                                                                                     else _D('F:filter_actions_mousedown', 'W:item', itemid, 'not found in items cache!');
 
               break;
             case 'menu':
@@ -2124,15 +2124,13 @@ var TweetfilterPrototype = function() {
               '<div class="about">',
                 '<ul>',
                   '<li class="version">Tweetfilter '+this.version+'</li>',
-                  '<li class="update"><a href="http://tweetfilter.netne.net" target="_blank">Visit website</a></li>',
-                  '<li class="support">',
-                    '<a class="tf-support flattr" href="http://flattr.com/thing/314573/Tweetfilter" title="Thank you! <3" target="_blank"><span>Support Tweetfilter</span></a>',
-                  '</li>',
-                  '<li class="support">',
-                    '<a class="tf-support tweet" href="http://twitter.com/share?lang=en&text=Tweetfilter%20%E2%99%A5%20&url=http%3A%2F%2Ftweetfilter.netne.net&via=tweetfilterjs" title="show some love :)"><span>Tweet</span></a>',
-                  '</li>',
+                  '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
+                  '<li class="support"><a href="#" target="_blank">Show ♥</a></li>',
                 '</ul>',
-              '<div>',
+              '</div>',
+              '<div class="support">',
+                '<p>Thanks for supporting Tweetfilter!</p>',
+              '</div>',
             '</div>',
           '</div>',
         '</div>'
@@ -2245,6 +2243,17 @@ var TweetfilterPrototype = function() {
         settings.messagesinceid = settings.mentionsinceid = -1;
         $('#tf-export-settings').attr('href', "javascript:(function() { twtfilter.loadsettings("+JSON.stringify(settings)+"); })();");    
         return false;
+      }).delegate('li.support > a', 'click', function() {
+        new twttr.widget.TweetDialog({
+          modal: false,
+          draggable: true,
+          defaultContent: "Tweetfilter ♥ http://tweetfilter.org",
+          template: {
+            title: _("Thank you! <3")
+          },
+          origin: "Tweetfilter "+that.version
+        }).open().focus();        
+        
       });
       //set initial active tab
       $('.active a[data-tab]', this.widget).each(function() {
@@ -2726,10 +2735,14 @@ var TweetfilterPrototype = function() {
           '#tf div.about ul li.version { float:left; margin-left:0; }',
           '#tf div.about ul li a { color:@link; text-decoration:none; }',
           '#tf div.about ul li a.tweet { display:inline-block; height:15px; width:42px; overflow:hidden; text-indent:-100px; }',
-          '#tf div.about ul li a.flattr { display:inline-block; height:15px; width:68px; background-position:0 -15px;  overflow:hidden; text-indent:-100px; }',
           '#tf div.about ul li a:hover { text-decoration:underline; }',
+          '#tf div.support { display:none; }',
+          /*
+          '#tf div.about { padding: 10px 0 0 0; overflow:hidden; border-top:1px solid #eee; margin-top: 10px; }',
           
+          '#tf div.about ul li a.flattr { display:inline-block; height:15px; width:68px; background-position:0 -15px;  overflow:hidden; text-indent:-100px; }',
           '#tf div.about a.pledgie { font-size:10px; display:inline-block; line-height:14px; padding:0 5px; background: #01A163;'+this.css3gradient('#01A163', '#077D4D', true)+this.css3rounded('2px')+' color:#fff; font-weight:bold; font-family:Arial,Helvetica,sans-serif; }',
+*/
           '#tf-scroll { margin:5px 10px; overflow:auto; max-height:160px; display:none; }',
           
           '.stream-title h2 em { color: @link; font-style:normal; }',
