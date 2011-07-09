@@ -1,0 +1,103 @@
+* { margin:0; padding:0; }
+html,body { font: 95%/1.5 "Droid Sans","Helvetica Neue",Arial,Helvetica,sans-serif; min-height:100%; line-height:1.5em; min-width:600px; }
+body { background:#fbfafa; }
+h1, h2, h3, h4, h5, h6 { margin: 1.5em 0 0.5em; font-weight: normal; line-height: 1.1em; color: #222; font-family:"Droid Serif", Georgia,'Times New Roman',Times,serif; }
+h1 { margin: 0 0 0.5em; font-size: 2.5em; line-height: 1.2em; } 
+h2 { font-size: 1.5625em; } 
+h3 { font-size: 1.25em; } 
+h4 { font-size: 1em; font-weight: bold; }     
+a img { border:0; }
+code { color: #45739E; font-family:monospace,sans-serif; font-size:1em; }
+p { margin:0 0 1.5em 0; padding:0; }
+p, ul, ol { margin-bottom: 1em; font-size:1em; line-height:1.4em; }
+ul, ol { margin-left: 2em; }
+li { margin-bottom: 0.2em; }
+
+
+#content a { background:#369; color:#fff; text-decoration:none; }
+#content a:hover { background:#222; }
+#sidebar a { color: #1C6BBD; font-size:1.1em; font-family:"Droid Serif",Georgia,"Times New Roman",Times,serif; text-decoration:none; }
+#sidebar a:hover { text-decoration:underline; } 
+
+#all { max-width:1200px; min-width:650px; background:#fff; margin:25px auto; -moz-border-radius:15px; }
+
+#screenshot { text-align:right; overflow:hidden; }
+#screenshot img { float:right; }
+#header { text-align:center; }
+#header h1, #header h2 { line-height:1em; margin:0; }
+#header h2 { margin:10px 0 25px 0; }
+
+#contents { overflow:hidden; position:relative; }
+#content, #sidebar { float:left; }
+#content { width:60%; background:#fff; -moz-border-radius:15px; padding:25px 0; -moz-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5);
+          -webkit-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5); box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5); }
+#sidebar { width:40%; }
+#sidebar > div { margin: 25px;  }
+#content > div  { margin: 0 25px; }
+
+.pinbottom > .scroll { bottom:0; top:auto !important; position:fixed;  }
+.pintop > .scroll { top:0; bottom:auto !important; position:fixed; }
+
+#mentions ul { list-style:none; padding:0; margin:0; }
+#mentions ul li { margin-bottom:0.3em; }
+#links { margin-bottom:25px; }
+#links .missing em { color: #777; }
+#links li { margin-bottom: 0.8em; }
+#links li em { display:block; color:#333; }
+div.bookmarklet { position:relative; }
+div.bookmarklet > div.version { position:absolute; left: 100px; top:15px; color:#999; }
+a.bookmarklet span { display:none; }
+a.bookmarklet { display:inline-block; margin:10px; border:4px solid #eee; -moz-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5); 
+                -webkit-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5); box-shadow: 0 0 4px rgba(0, 0, 0, 0.5); 
+                width:60px; height:60px; -moz-border-radius:15px; -webkit-border-radius:15px; border-radius:15px; cursor:move;  
+                background:url('tf-bookmarklet.gif') no-repeat center; }
+
+#support a,#share a { background:#eee; border:1px solid #999; padding:4px; -moz-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);  display:inline-block;
+             -webkit-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5); box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);  -moz-border-radius:15px;
+             -webkit-border-radius:15px; 
+             border-radius:15px; font-family:"Droid Sans","Helvetica Neue",Arial,Helvetica,sans-serif; margin-right:10px; }
+#support a:hover, #share a:hover { text-decoration:none; }
+#support a span, #share a span { display:block; background:#fff; -moz-border-radius:12px; -webkit-border-radius:12px; border-radius:12px;
+                  padding: 4px 10px; border:1px solid #999;  }
+#support a.paypal { background: #FFF0A8; border-color:#f93; -webkit-box-shadow: 0 0 4px rgba(255, 153, 51, 1); -moz-box-shadow: 0 0 4px rgba(255, 153, 51, 1); 
+                   box-shadow:  0 0 4px rgba(255, 153, 51, 0.5);  }
+#support a.paypal span { border-color: #f93; color:#f93; font-weight:bold; }
+#support a.paypal span i { font-weight:bold; color:#336697; font-style:normal; }
+#support a.paypal span i:first-child { color:#11334E; }
+#support a.flattr { background: #D7EDAA; border-color: #7BAB46; -webkit-box-shadow: 0 0 4px #7BAB46; -moz-box-shadow: 0 0 4px #7BAB46; 
+                   box-shadow:  0 0 4px #7BAB46;  }
+#support a.flattr span { border-color: #7BAB46; color:#201C1D; font-weight:bold; }
+#support a.flattr span i { font-weight:bold; color:#F57D26; font-style:normal; }
+#share a.twttr { background:#DDEEF6; border-color:#0099CC; -webkit-box-shadow: 0 0 4px #0099CC; -moz-box-shadow: 0 0 4px #0099CC; 
+                   box-shadow:  0 0 4px #0099CC; }
+#share a.twttr span { border-color: #0099CC; color:#2E99CC; font-weight:bold; }
+#share a.stumble { background:rgba(14, 177, 58, 0.3); border-color:#09B142; -webkit-box-shadow: 0 0 4px #09B142; -moz-box-shadow: 0 0 4px #09B142; 
+                   box-shadow:  0 0 4px #09B142; }
+#share a.stumble span { border-color: #09B142; color:#09B142; font-weight:bold; }
+#share a.stumble span i { color:#0284BE; font-style:normal; }
+#share a.plusone { background:rgba(227, 44, 59, 0.3); border-color:#E32C3B; -webkit-box-shadow: 0 0 4px #FFCA27; -moz-box-shadow: 0 0 4px #FFCA27; 
+                   box-shadow:  0 0 4px #FFCA27; }
+#share a.plusone span { border-color: #E32C3B; color:#00549C; font-weight:bold; text-shadow:0 0 3px rgba(0,0,0,0.3); }
+#share a.plusone span i { font-style:normal; color:#E32C3B;  }
+a.bookmarklet.over { background-image:url('tf-bookmarklet-over.gif'); }
+a.bookmarklet.grab { background-image:url('tf-bookmarklet-grab.gif'); }
+
+#description a { background:#fff; color:#1C6BBD;  }
+#description a:hover { background:#eee; }
+#description p span { font-size:110%; display:block; margin-bottom:0.2em;}
+div.browsers { background:url('browsers.png') no-repeat center left; height:42px; }
+div.browsers.permanent { width: 56px; }
+img.align-right { float:right; margin:0 0 1em 1em; }
+#tweets { height: 800px; overflow:auto; }
+#tweets a { background:transparent; padding:0; }
+#tweets ul { list-style:none; padding:0; margin:0; }
+.jta-nodata { display:none; }
+.jta-tweet-list-item { overflow:hidden; }
+jta-tweet-profile-image { float:left; }
+.jta-tweet-body { overflow:hidden; }
+div.jta-tweet-profile-image { float:left; margin:0 10px 10px 0; }
+div.jta-tweet-profile-image img { display:block; -moz-border-radius:5px; border:2px solid #eee; -moz-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);  }
+.jta-tweet-attributes { display:block; font-size:80%; }
+
+p.note { line-height:1.3em; font-size:0.9em; }
+p.browsers { background:url(browsers.png) no-repeat center left; height: 80px; }
