@@ -14,8 +14,8 @@ ul, ol { margin-left: 2em; }
 li { margin-bottom: 0.2em; }
 
 
-#content a { background:#369; color:#fff; text-decoration:none; }
-#content a:hover { background:#222; }
+#content a { color:#369; text-decoration:none; }
+#content a:hover { background:#eee; text-decoration:underline; }
 #sidebar a { color: #1C6BBD; font-size:1.1em; font-family:"Droid Serif",Georgia,"Times New Roman",Times,serif; text-decoration:none; }
 #sidebar a:hover { text-decoration:underline; } 
 
@@ -27,12 +27,13 @@ li { margin-bottom: 0.2em; }
 #header h1, #header h2 { line-height:1em; margin:0; }
 #header h2 { margin:10px 0 25px 0; }
 
-#contents { overflow:hidden; position:relative; }
+#contents { overflow:hidden; position:relative; padding-bottom:5px; }
 #content, #sidebar { float:left; }
 #content { width:60%; background:#fff; -moz-border-radius:15px; padding:25px 0; -moz-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5);
           -webkit-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5); box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5); }
 #sidebar { width:40%; }
-#sidebar > div { margin: 25px;  }
+#sidebar > div { margin: 25px 25px 0 25px;  }
+#sidebar > div.scroll { padding-bottom:25px; margin-bottom:25px; }
 #content > div  { margin: 0 25px; }
 
 .pinbottom > .scroll { bottom:0; top:auto !important; position:fixed;  }
@@ -88,7 +89,7 @@ a.bookmarklet.grab { background-image:url('tf-bookmarklet-grab.gif'); }
 div.browsers { background:url('browsers.png') no-repeat center left; height:42px; }
 div.browsers.permanent { width: 56px; }
 img.align-right { float:right; margin:0 0 1em 1em; }
-#tweets { height: 800px; overflow:auto; }
+div.scroll #tweets { height: 800px; overflow:auto; }
 #tweets a { background:transparent; padding:0; }
 #tweets ul { list-style:none; padding:0; margin:0; }
 .jta-nodata { display:none; }

@@ -279,7 +279,7 @@
               <li>export <strong>Tweetfilter settings</strong> by dragging the "Tweetfilter settings" bookmarklet to
                 your favorites bar (or, alternatively right click > add to bookmarks or similar). 
                 After you click it (while on twitter.com with Tweetfilter running), your settings from the moment of adding the
-                bookmarklet will be reloaded. This triggers one page refresh.</li>
+                bookmarklet will be reloaded. This triggers one page refresh. YOUR CURRENT SETTINGS WILL BE LOST.</li>
             </ul>
           </div>
           <div id="feedback">
@@ -357,11 +357,14 @@
             <p><strong>Tweetfilter is free open source software</strong> released under GPL v3
               license, <strong>inspired and supported by the Twitter community. Tweetfilter is not
                 associated in any way with Twitter Inc.</strong></p>
+           <p>Tweetfilter started in 2009 ("old" Twitter times) as a project on the well known
+            <a href="http://userscripts.org/scripts/show/49905" rel="nofollow">userscripts.org</a>.
+            Since 2011 Tweetfilter 2.0 is hosted and maintained on the fabulous <a href="https://github.com/Tweetfilter/tweetfilter.github.com">github.com</a>.</p>
           </div>
           <div id="support">
             <h2>Support what you like</h2>
-            <p>Everything you donate goes to support the Tweetfilter project, as reward for the work already 
-              done and for new nice things to come. Thank you very much!</p>
+            <p>Everything you donate goes to support the Tweetfilter project, for the work already 
+              done and for new nice features to come. Thank you very much!</p>
             <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
               <input name="cmd" value="_s-xclick" type="hidden" />
               <input name="hosted_button_id" value="J9ZSAVRL8GKQ2" type="hidden" />
@@ -386,13 +389,6 @@
               </a>
             </div>
           </div>
-          <div id="history">
-           <h2>Credits</h2>
-           <p>Tweetfilter started in 2009 ("old" Twitter times) as a project on the well known
-            <a href="http://userscripts.org/scripts/show/49905" rel="nofollow">userscripts.org</a>.
-            Since 2011 Tweetfilter 2.0 is hosted and maintained on the fabulous <a href="https://github.com/Tweetfilter/tweetfilter.github.com">github.com</a>.</p>
-          </div>
-          
        </div><!--sidebar-->
       </div><!--contents-->
     </div><!--all-->
@@ -472,7 +468,7 @@
                           .bind('mouseleave', function() { $(this).removeClass('over'); })
                           .bind('mousedown', function() { $(this).addClass('grab'); })
                           .bind('mouseup mouseleave', function() { $(this).removeClass('grab'); });
-  /*      $('#tweets').jTweetsAnywhere({
+        $('#tweets').jTweetsAnywhere({
           searchParams: ['lang=all&q=tweetfilter+OR+scripts%2Fshow%2F49905'],
           count: 20,
           showTweetFeed: {
@@ -484,7 +480,7 @@
               refreshInterval: 15
             }
           }
-        });*/
+        });
         
         $('#links a').click(function() {
           window.open($(this).attr('href'));
