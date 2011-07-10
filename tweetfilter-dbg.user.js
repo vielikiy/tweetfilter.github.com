@@ -33,7 +33,7 @@ var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
 // <debug>
-    this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
+    this.debug = false; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
     this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
@@ -144,7 +144,7 @@ var TweetfilterPrototype = function() {
     this.queries = [];  /* parsed queries (objects) */
     this.exclusive = []; /* exclusive filtered queries (ids) */
     
-    this.friendstatus = {expires: 0};
+    this.friendstatus = {expires: 0, cache:true};
     this.cursors = {
       /* followerids: { fetching: true, nextcursor:'123456420' } */ 
     }; //cursor information for fetch functions
@@ -596,18 +596,20 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.refreshcolors = function() {
+    var user = twttr.profileUser && twttr.profileUser.screenName === this.cs().screenName ? twttr.profileUser : twttr.currentUser;
     this.colors = {
-      background: '#'+twttr.currentUser.profileBackgroundColor,
-      link: '#'+twttr.currentUser.profileLinkColor,
-      border: '#'+twttr.currentUser.profileSidebarBorderColor,
-      fill: '#'+twttr.currentUser.profileSidebarFillColor,
-      text: '#'+twttr.currentUser.profileTextColor,
+      background: '#'+user.profileBackgroundColor,
+      link: '#'+user.profileLinkColor,
+      border: '#'+user.profileSidebarBorderColor,
+      fill: '#'+user.profileSidebarFillColor,
+      text: '#'+user.profileTextColor,
       reply: '#FFFAB4',
       darktext: '#444',
       lighttext: '#999'
     };
   };
   
+ 
   //load settings from local storage. executed after widget was created
   Tweetfilter.prototype.loadsettings = function(imported) {
                                                                                                     _D('F:loadsettings', this.user, twttr.currentUser.id, twttr.currentUser.screenName);
@@ -683,7 +685,7 @@ var TweetfilterPrototype = function() {
         version: this.version,
         messagesinceid: this.status.messagesinceid > 0 ? this.status.messagesinceid : -1,
         mentionsinceid: this.status.mentionsinceid > 0 ? this.status.mentionsinceid : -1,
-        friendstatus: this.friendstatus
+        friendstatus: this.friendstatus.cache ? this.friendstatus : {expires:0,cache:false} //don't save too many friends
       };
       for (var q in this.queries) {
         settings[this.user.id].queries.push({
@@ -1904,7 +1906,24 @@ var TweetfilterPrototype = function() {
       case 'friendids':
         if (this.cursors.friendids.fetched && !this.cursors.friendids.fetching && //have friends and followers been fetched and are not currently busy fetching data
             this.cursors.followerids.fetched && !this.cursors.followerids.fetching) {
-          this.friendstatus = { expires: parseInt(new Date().getTime() / 1000)+600 }; //friend status expires
+         
+
+           //<debug> test what happens with friend status if you have really many following/followers
+           /*  var uid;
+            for (var i=0;i<100000;i++) {
+              if (i % 3 === 0) { //try to build a nearly realistic following/follower situation
+                uid = ''+Math.floor(Math.random()*10000000001);
+                this.cursors.friendids.items.push(uid);
+                this.cursors.followerids.items.push(uid);
+              } else {
+                this.cursors.friendids.items.push(''+Math.floor(Math.random()*10000000001));
+                this.cursors.followerids.items.push(''+Math.floor(Math.random()*10000000001));
+              }
+            }*/
+            //</debug> during tests, saving 250.000 friends exceeded localstorage memory size. 100.000 went just fine. setting limit for cached friends to 42.000
+                        
+          
+          this.friendstatus = { expires: parseInt(new Date().getTime() / 1000)+600, cache:true }; //friend status expires
           for (var i=0,imax=this.cursors.friendids.items.length,friendid;i<imax && (friendid=this.cursors.friendids.items[i]);i++) {
             this.friendstatus[friendid] = 1; //following
           }
@@ -1915,6 +1934,7 @@ var TweetfilterPrototype = function() {
               this.friendstatus[followerid] = 2; //follower
             }
           }
+          this.friendstatus.cache = imax+jmax < 42000;
           this.savesettings();
           this.poll('refreshcss', ['friends']);
         }
@@ -2752,11 +2772,12 @@ var TweetfilterPrototype = function() {
           $('#tf-count-media').html(cs.filter.media.length);
           $('#tf-count-replies').html(cs.filter.replies.length);
           $('#tf-count-links').html(cs.filter.links.length);
+          cs.fetchUntilScreenIsFull();
           break;
         case 'friends':
           if (this.friendstatus.expires) { //is 0 at init, > 0 means it's loaded
             if (this.options['show-friends']) { //show friend status icon
-              var following=[], follower=[], mutual=[], css = [], username, userid;
+              var following=[], follower=[], mutual=[], css = [], userid;
                                                                                                       _D('F:refreshcss', 'W:refreshing friends css');
               for (userid in this.friendstatus) {
                 switch(this.friendstatus[userid]) {
