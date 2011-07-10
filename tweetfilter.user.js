@@ -33,7 +33,7 @@ var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-    this.version = '2.0'; //current script version
+    this.version = '2.0 rc1'; //current visible script version
 
     this.options = { /* default option settings */
       /* widget options */
@@ -273,6 +273,12 @@ var TweetfilterPrototype = function() {
     var isloaded = true;
     try { 
       this.cp = twttr.app.currentPage();
+      if (this.cp && !this.cp.streamManager) {
+        this.stream.filterstream = false;
+        return false;
+      } else {
+        this.stream.filterstream = true;
+      }
       if (!this.cp.streamManager.hasOwnProperty('filtered')) {
         this.cp.streamManager.bind('newItemsCountChanged switchTo', twttr.bind(this, function(e) { 
           this.poll('parseitems'); 
@@ -295,7 +301,7 @@ var TweetfilterPrototype = function() {
     if (!cs.hasOwnProperty('filtered')) {
       cs.bind('didTweet doneLoadingMore streamEnd', twttr.bind(this, function(e) {this.poll('parseitems');}));
       cs.$node.delegate('a.tf', 'mousedown click', twttr.bind(this, function(e) {this.tweetactionsclick(e);})) 
-              .delegate('.tf-via > a', 'click', twttr.bind(this, function(e) {this.tweetclickvia(e);}))
+              .delegate('.tf-via > a', 'click', twttr.bind(this, function(e) {return this.tweetclickvia(e);}))
               .delegate('div.tweet-text', 'mousedown', twttr.bind(this, function(e) {this.tweettextmousedown(e);}))
               .delegate('div.tweet-text', 'mouseup click', twttr.bind(this, function(e) {this.tweettextmouseup(e);}))
               .delegate('ul.tf-menu', 'mouseleave', twttr.bind(this, function(e) {this.filtermenuleave(e);}));
@@ -438,7 +444,7 @@ var TweetfilterPrototype = function() {
                                           this.stream.params.screenName.toLowerCase() === this.user.name));
       this.enableoption(['skip-me'], !exclusivemode && this.stream.namespace!=='YourTweetsRetweeted' && 
                                      !(this.stream.namespace === 'User' && this.stream.params.screenName.toLowerCase() === this.user.name));
-      this.enableoption(['add-selection'], true);
+      this.enableoption(['add-selection','highlight-mentionsme'], true);
     } else {
       this.enableoption(['highlight-mentionsme'], this.stream.itemtype === 'tweet');
       this.enableoption(['filter-inverted', 'filter-replies', 'filter-media', 'filter-retweets', 'skip-me', 'show-friends', 'skip-mentionsme', 'add-selection'], false);
@@ -510,10 +516,13 @@ var TweetfilterPrototype = function() {
             repeating = false;
             params = this.polling.running[e];
           } 
-          if ((this.waitforstream() && (result = this[e](params))) || (repeating && runsleft <= 0)) {
-            this.polling.running[e] = false;
-          } else {
-            this.polling.stop = false;
+          if (this.waitforstream()) {
+            if ((result = this[e](params)) ||  (repeating && runsleft <= 0)) {
+              this.polling.running[e] = false;
+            } else {
+              this.polling.stop = false;
+            }
+          } else { //waitforstream failed: not loaded or not a valid stream
             if (!this.streamready()) {
               break; 
             }
@@ -596,7 +605,7 @@ var TweetfilterPrototype = function() {
         }
       }
       for (var option in this.options) {
-        if (typeof settings.options[option] === typeof this.options[option]) {
+        if (typeof settings.options[option] === typeof this.options[option]) { 
           this.setoption(option, settings.options[option], true);
           $('[data-option='+option+']', this.widget).toggleClass('checked', this.options[option]);
           if (option === 'filter-inverted') {
@@ -614,8 +623,8 @@ var TweetfilterPrototype = function() {
         this.options['alert-sound-message'] = this.options['alert-sound-mention'] = false;
         this.enableoption(['alert-sound-message', 'alert-sound-mention'], false);
       }
-      if (settings.version !== this.version) {
-        this.showmessage('Tweetfilter has been updated!<br /><a href="http://tweetfilter.org/#whatsnew" target="_blank">See what\'s new</a>', {resident: true});
+      if (settings.version && settings.version !== this.version) {
+        this.showmessage('Tweetfilter has been updated!<br /><a href="http://tweetfilter.org/beta.html#whatsnew" target="_blank">See what\'s new</a>', {resident: true});
       }
     } //need to refresh after import
     this.savesettings(imported);
@@ -810,7 +819,7 @@ var TweetfilterPrototype = function() {
       case 'show-friends':
         this.poll((status ? 'add' : 'remove') +'class', [option]);
         refresh = ['friends'];
-        this.poll('refreshfriends', status);
+        this.poll('refreshfriends');
       break;
     }
     if (clicked && !!this.widget) {
@@ -849,7 +858,7 @@ var TweetfilterPrototype = function() {
       }
       var exclusivemode = this.exclusive.length > 0;
 
-      if (!this.options['filter-disabled']) {
+      if (!this.options['filter-disabled'] && this.stream.itemtype === 'tweet') {
         $('> em', textcontainer).remove();
         if (exclusivemode || this.options['filter-inverted']) { //viewing "Filtered" tweets
           textcontainer.prepend('<em>Filtered </em>');
@@ -891,7 +900,7 @@ var TweetfilterPrototype = function() {
     var cs, i=0, data, filteredcount, nextid, itemcount, uid, nextuid;
     if (!(cs = this.cs())) return false;
     switch(cs.streamItemType) {
-      case 'tweet':
+      case 'tweet': //tweet stream
         if (!cs.hasOwnProperty('filter')) {
           cs.filter = { //create filter index in cached stream
             items: [],    //all cleaned, processed items to use with checktweet
@@ -1020,12 +1029,12 @@ var TweetfilterPrototype = function() {
         }
         this.poll('parsestream');    //always trigger parsestream, new items are already cached before they are displayed 
         break;
-      case 'user':
+      case 'user': //user stream 
         if (!cs.hasOwnProperty('filter')) {
           cs.filter = { //create filter index in cached stream
             items: [],    //all cleaned, processed items to use with checktweet
             itemids: {},  //twttr-api ids associated with internal ids
-            users: {}    //timeline index with user as primary key. for fast user filter (or to list all users in timeline) 
+            users: {}    //timeline index with user as primary key. 
           };
         }
         if (cs.filter.items.length < cs.items.length) {
@@ -1104,7 +1113,7 @@ var TweetfilterPrototype = function() {
               if (htmltext.indexOf("\n") > -1) {
                 tweettext.html(htmltext.replace(/\n/g, ' <br />')); //insert line breaks
               }
-              tweet.ismedia = $("span.icons span.media", item).length > 0; //TODO:refine media filter - photos, video, links
+              tweet.ismedia = $("span.icons span.media", item).length > 0;
               if (tweet.ismedia) {
                 li = $.inArray(tweet.id, cs.filter.links);
                 if (li > -1) {
@@ -1260,9 +1269,9 @@ var TweetfilterPrototype = function() {
     var types = {
       user:    /^\-?(?:f(?:rom)?\:\s*@?|@@)([A-Za-z0-9\_]{1,15}|(?:.+\=)?\/.+\/)$/, // from: @tweetfilterjs or from:tweetfilterjs or f:tweetfilterjs or @@tweetfilterjs (short syntax)
       source:  /^\-?(?:v(?:ia)?\:\s*|\:@)(.+)$/, // via: echophon or via:web or v:iphone or :@sometwitterbot (short syntax)
-      name:    /^\-?(?:by?\:\s*|\?@)(.+)$/, // name: john doe or n:jane or ?@john  (short syntax)
-      exact:   /^\-?"(.+)"$/, //case-insensitive exact phrase surrounded by stopchars like space or period
-      simple:  /^'?\-?(.+)/ //anything else is simple text search or regex (within text and within expanded links text), trim leading escape character (single quote)
+      name:    /^\-?(?:by?\:\s*|\?@)(.+)$/, // by: john doe or ?@john doe  (short syntax)
+      exact:   /^\-?"(.+)"$/, //case-insensitive exact phrase surrounded by stopchars like space or period (this.stopchars)
+      simple:  /^'?\-?('?(.+))/ //anything else is simple text search or regex (within text and within expanded links text), trim leading escape character (single quote)
     }
     var matches, regularmatch, exactmatch;
     for (var type in types) {
@@ -1281,13 +1290,16 @@ var TweetfilterPrototype = function() {
           break;
           case 'simple':
             search.simple = true;
-            search.raw = search.label;
+            search.raw = matches[0];
             search.index = search.raw.toLowerCase();
-            if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
+            if (search.raw[0] !== "'" && matches[1]!==matches[2]) { //simple search was prefixed with single quote after hyphen
+              search.label = matches[2];
+              search.search = search.sortby = matches[2].toLowerCase(); //always do case insensitive search / sort
+            } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
               search.label = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/im');
               search.search = search.rx = regularmatch[2];
               search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
-            }              
+            }
           break;
           case 'user': //match tweets by user
             search.user = true;
@@ -1305,7 +1317,7 @@ var TweetfilterPrototype = function() {
             search.source = true;
             search.index = 'via:'+search.search;
             search.raw = 'via:'+search.label;
-            if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) name match <-- by:"John Doe"
+            if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) source match <-- via:"web"
               search.label = 'via '+exactmatch[1];
               search.exact = true;
             } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
@@ -1514,8 +1526,7 @@ var TweetfilterPrototype = function() {
       }
     } else {
       if (this.timeids.checkreceived !== -1) {
-        window.clearInterval(this.timeids.checkreceived);
-        this.timeids.checkreceived = -1;
+        window.clearInterval([this.timeids.checkreceived, this.timeids.checkreceived=-1][0]);
       }
     }
     return true;
@@ -1756,9 +1767,12 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.refreshfriends = function() { 
     if (!this.options['show-friends']) {
+      if (this.timeids.refreshfriends !== -1) {
+        window.clearInterval([this.timeids.refreshfriends,this.timeids.refreshfriends=-1][0]);
+      }
       return true;
     }
-    if (this.friendstatus.expires < parseInt(new Date().getTime() / 1000)) {
+    if (this.friendstatus.expires < parseInt(new Date().getTime() / 1000)) {  //don't refresh on every page load
       this.refreshcursor({
         'poll':'refreshfriends', 
         'name':'friendids',  //could use "friends" for full info, but friendids is much faster
@@ -1772,37 +1786,33 @@ var TweetfilterPrototype = function() {
     } else {
       this.poll('refreshcss', ['friends']);
     }
-    return true;
-  };
-  
-  Tweetfilter.prototype.getfriendstatus = function(userid) { //results of this functions are cached on stream
-    if (this.cursors.friendids && this.cursors.friendids.nextcursor==='0' && 
-        this.cursors.followerids && this.cursors.followerids.nextcursor==='0') {
-      return this.friendstatus.hasOwnProperty(userid) ? this.friendstatus[userid] : 0;
+    if (!this.timeids.refreshfriends || this.timeids.refreshfriends === -1) {
+      this.timeids.refreshfriends = window.setInterval(twttr.bind(this, function() {
+        this.friendstatus.expires = 0; //force refresh
+        this.poll('refreshfriends');
+      }), 300000); //every 10 mins
     }
-    return -1;
+    return true;
   };
   
   Tweetfilter.prototype.cursorfetched = function(cursor) { 
     switch(cursor.name)  {
       case 'followerids':
       case 'friendids':
-        if (this.cursors.friendids && this.cursors.friendids.nextcursor==='0' && 
-            this.cursors.followerids && this.cursors.followerids.nextcursor==='0') {
-          if (this.friendstatus.expires < parseInt(new Date().getTime() / 1000)) {
-            this.friendstatus = {expires: parseInt(new Date().getTime() / 1000)+3600}; //friend status expires in an hour, like the cursors
-            for (var i=0,imax=this.cursors.friendids.items.length,friendid;i<imax && (friendid=this.cursors.friendids.items[i]);i++) {
-              this.friendstatus[friendid] = 1; //following
-            }
-            for (var j=0,jmax=this.cursors.followerids.items.length,followerid;j<jmax && (followerid=this.cursors.followerids.items[j]);j++) {
-              if (this.friendstatus.hasOwnProperty(followerid)) {
-                this.friendstatus[followerid] = 4; //mutual 
-              } else {
-                this.friendstatus[followerid] = 2; //follower
-              }
-            }
-            this.savesettings();
+        if (this.cursors.friendids.fetched && !this.cursors.friendids.fetching && //have friends and followers been fetched and are not currently busy fetching data
+            this.cursors.followerids.fetched && !this.cursors.followerids.fetching) {
+          this.friendstatus = { expires: parseInt(new Date().getTime() / 1000)+600 }; //friend status expires
+          for (var i=0,imax=this.cursors.friendids.items.length,friendid;i<imax && (friendid=this.cursors.friendids.items[i]);i++) {
+            this.friendstatus[friendid] = 1; //following
           }
+          for (var j=0,jmax=this.cursors.followerids.items.length,followerid;j<jmax && (followerid=this.cursors.followerids.items[j]);j++) {
+            if (this.friendstatus.hasOwnProperty(followerid)) {
+              this.friendstatus[followerid] = 4; //mutual 
+            } else {
+              this.friendstatus[followerid] = 2; //follower
+            }
+          }
+          this.savesettings();
           this.poll('refreshcss', ['friends']);
         }
       break;
@@ -1812,21 +1822,15 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.refreshcursor = function(cursor) {
     if (!this.cursors[cursor.name]) { //first time
       this.cursors[cursor.name] = $.extend({}, cursor, {
-        expires: 0,
         nextcursor: '-1',
         items: [],
-        fetching: false
+        fetching: false, //currently fetched
+        fetched: false   //fetched (at least) once
       });
     }
     cursor = this.cursors[cursor.name];
-    if (cursor.expires > parseInt(new Date().getTime() / 1000)) {
-      cursor.fetching = false;
-      this.cursorfetched(cursor);
-      return true;
-    } else {
-      cursor.nextcursor = '-1';
-      cursor.items = [];
-    }
+    cursor.nextcursor = '-1';
+    cursor.items = [];
     if (cursor.fetching) {
       return true;
     }
@@ -1843,7 +1847,7 @@ var TweetfilterPrototype = function() {
     var that = this;
     var params = {
       cursor: cursor.nextcursor,
-      success: function(res, info) {
+      success: function(resp, info) {
         if (info.response[cursor.resultset].length) {
           cursor.items = cursor.items.concat(info.response[cursor.resultset]);
         }
@@ -1856,7 +1860,7 @@ var TweetfilterPrototype = function() {
             that.fetchcursor(cursor);
           }
         } else {
-          cursor.expires = parseInt(new Date().getTime() / 1000) + 3590; //expires in an hour
+          cursor.fetched = true;
           cursor.fetching = false;
           that.cursorfetched(cursor);
         }
@@ -1871,24 +1875,25 @@ var TweetfilterPrototype = function() {
         break;
     }
   };
-    
+  
   //twitter api resolved shortened urls
   Tweetfilter.prototype.twttrajaxevent = function(event, request, settings) {
     if (settings.url.indexOf('urls/resolve') > -1 || settings.url.indexOf('/related_results/') > -1) { //resolved urls
       if (this.timeids.parselinks && this.timeids.parselinks !== -1) {
-        window.clearTimeout(this.timeids.parselinks);
+        window.clearTimeout([this.timeids.parselinks, this.timeids.parselinks=-1][0]);
         this.timeids.parselinks = -1;
       }
       this.timeids.parselinks = window.setTimeout(twttr.bind(this, function() {
         this.poll('parselinks');
+        this.timeids.parselinks = -1;
       }), this.heartbeat * 4);
     } else if (settings.url.indexOf('/trends/') > -1 || settings.url.indexOf('/recommendations') || settings.url.indexOf('/promos/')) { //fetched trends, who to follow, ad
       if (this.timeids.findcomponents && this.timeids.findcomponents !== -1) {
-        window.clearTimeout(this.timeids.findcomponents);
-        this.timeids.findcomponents = -1;
+        window.clearTimeout([this.timeids.findcomponents, this.timeids.findcomponents=-1][0]);
       }
       this.timeids.findcomponents = window.setTimeout(twttr.bind(this, function() {
         this.poll('findcomponents');
+        this.timeids.findcomponents = -1;
       }), this.heartbeat * 4);
     }
   };
@@ -1914,7 +1919,7 @@ var TweetfilterPrototype = function() {
         }
       }
       if (expandedurl != titleurl) { //has link been expanded since last run
-        link.attr('data-expandedurl', titleurl).attr('href', showexpanded ? titleurl : shorturl);
+        link.attr('data-expandedurl', titleurl)/*.attr('href', showexpanded ? titleurl : shorturl)*/;
         var itemid, id;
         var item = link.closest('div.stream-item');
         if (item.length) {
@@ -2019,13 +2024,13 @@ var TweetfilterPrototype = function() {
           '<div class="tf-stream">',
             '<ul class="checks">',
               '<li class="streamtitle"><span id="tf-stream-title"></span></li>',
-              '<li class="disable"><a data-option="filter-disabled" title="show all tweets"><b></b>disable</a></li>',
+              '<li class="disable"><a data-option="filter-disabled" title="show all tweets"><b></b>disable filter</a></li>',
             '</ul>',
           '</div>',
           '<ul class="tf-tabs">',
             '<li class="addtofilter">',
               '<input type="text" id="tf-filter-add" value="+ Add to Tweetfilter" />',
-              '<a href="http://tweetfilter.org/#usage" target="blank" title="Tweetfilter usage (tweetfilter.org)">Help</a>',
+              '<a href="http://tweetfilter.org/beta.html#usage" target="blank" title="Tweetfilter usage (tweetfilter.org)">Help</a>',
             '</li>',
             '<li class="tf-tab active">',
               '<a data-tab="filters">Filters</a>',
@@ -2152,15 +2157,19 @@ var TweetfilterPrototype = function() {
       this.widget.delegate('input', 'keydown keypress keyup', function(e) {
         if (e.type === 'keydown' && e.which === 13) {
           /* add query to filter by pressing enter */
-          var queryid;
-          if ((queryid = that.addquery($('#tf-filter-add').val()))) {
+          var queryid, query=$('#tf-filter-add').val();
+          if (e.shiftKey && query[0] !== '-') { //add exclude with shift+enter
+            query = '-'+query;
+          }
+          if ((queryid = that.addquery(query))) {
             $('#tf-filter-add').val('').focus();
-            if (e.ctrlKey) {
-              this.setexclusive(queryid);
-              this.poll('refreshfilterlist');            
-              this.poll('setstreamtitle');
-              this.poll('removeselection');
-              this.refreshfiltercss();              
+            var tab = $('a[data-tab='+(query[0] === '-' ? 'excludes' : 'filters')+']', that.widget); //set active tab excluded or filtered
+            if (!tab.closest('li').hasClass('active')) {
+              tab.trigger('click');
+            }
+            if (e.ctrlKey || that.exclusive.length > 0) { //set as exclusive filter immediately with ctrl+enter
+              that.setquerystatus(queryid, -2);
+              that.poll('refreshfilterlist');            
             }
           }
         }
@@ -2553,10 +2562,6 @@ var TweetfilterPrototype = function() {
     var style = [];
     var name;
     var cs = this.cs();
-    if (!cs.hasOwnProperty('filter')) {
-      this.poll('parseitems');
-      return true; 
-    }
     for (var i in which) {
       style = [];
       name = which[i];
@@ -2567,6 +2572,10 @@ var TweetfilterPrototype = function() {
             this.setcss(name, style.join("\n"));
             $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
             break;
+          }
+          if (!cs.hasOwnProperty('filter')) {
+            this.poll('parseitems');
+            return true; 
           }
           this.refreshindex();
           var exclusivemode = this.exclusive.length > 0;
@@ -2696,7 +2705,7 @@ var TweetfilterPrototype = function() {
           '#tf .tf-stream { margin: 4px 10px 0 10px; border-bottom:1px solid #fff; }',
           '#tf .tf-stream > ul.checks > li { float:right; }',
           '#tf .tf-stream > ul.checks > li:first-child { float:left; }',
-          '#tf .tf-stream > ul.checks > li.disable { width:65px; }',
+          '#tf .tf-stream > ul.checks > li.disable { width:98px; margin-right:-10px;}',
           '#tf .tf-stream > ul.checks > li.disable > a { margin-top:2px; }',
           '#tf .tf-stream > ul.checks > li.streamtitle > span { display:inline; margin:0; position:static; }',
           '#tf .tf-stream > ul.checks > li.streamtitle > i { font-style:normal; color:@link; }',
