@@ -32,13 +32,6 @@
 var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
-// <debug>
-    this.debug = false; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
-                        //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
-    this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
-    this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
-    this._debugskipfunctions = ['checktweet','parselinks']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
-// </debug>   
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     this.version = '2.0 rc1'; //current visible script version
 
@@ -82,7 +75,8 @@ var TweetfilterPrototype = function() {
       'small-links': false,     /* show small links */
       'highlight-mentionsme':true, /* highlight replies to me */
       'show-friends':false,     /* show who follows you and who you follow */
-      'clear-stream-cache': true /* reset stream cache after page switch - for speed issues */
+      'clear-stream-cache': true, /* reset stream cache after page switch - for speed issues */
+      'tweets-fill-page': false /* load tweets until page is full */
     };                     
     this.disabledoptions = []; //currently disabled options. for check in getoption()
     //dashboard components toggled by options
@@ -217,7 +211,7 @@ var TweetfilterPrototype = function() {
          twttr[has]('router') && twttr[has]('$doc') && twttr[has]('$elements') && twttr[has]('app') && 
          twttr[has]('currentUser'))
       {
-        if (!window.localStorage || !JSON) { //browser must have local storage and native json
+        if (!this.checkrequirements) { //browser must have local storage and native json
           this.showmessage('Tweetfilter can\'t work correctly on this browser. <br />It would probably work fine on latest <a href="http://www.mozilla.com/firefox">Firefox</a>, '+
                            '<a href="http://www.google.com/chrome">Chrome</a> or <a href="http://www.opera.com">Opera</a>.', {resident:true});
           return false;
@@ -266,10 +260,7 @@ var TweetfilterPrototype = function() {
         this.status.initialized = true;
         this._poll();
         return true;
-      } else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
-    } else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
-                                                                                                    _D('F:initialize', 'reinitialize, ', this.initretries, 'retries left');
-    if (this.initretries--) {
+      }     }     if (this.initretries--) {
       setTimeout(function() {
         that.initialize();
       }, 1000); //reinitialize
@@ -277,6 +268,14 @@ var TweetfilterPrototype = function() {
     }
     if (typeof twttr !== 'undefined') this.showmessage('Tweetfilter failed to initialize. You may try to refresh the page.');
     return false;
+  };
+  
+  Tweetfilter.prototype.checkrequirements = function() {
+    try {
+      return !!window.localStorage && !!JSON && ~~[] === 0;
+    } catch(e) {
+      return false;
+    }
   };
   
   Tweetfilter.prototype.waitforstream = function() {
@@ -291,7 +290,6 @@ var TweetfilterPrototype = function() {
       }
       if (!this.cp.streamManager.hasOwnProperty('filtered')) {
         this.cp.streamManager.bind('newItemsCountChanged switchTo', twttr.bind(this, function(e) { 
-                                                                                                    _D('F:twttr', 'W:stream event triggered', e, arguments);
           this.poll('parseitems'); 
         }));
         this.cp.streamManager.filtered = true;
@@ -304,7 +302,6 @@ var TweetfilterPrototype = function() {
     }
     if (!isloaded) {
       if (this.stream.status !== 'loading') {
-                                                                                                    _D('F:waitforstream', 'W:stream is loading, resetting filter css');
         this.stream.status = 'loading';
         this.refreshfiltercss(true);
       }
@@ -321,17 +318,14 @@ var TweetfilterPrototype = function() {
     }
     if (this.stream.key !== cs._cacheKey) {
       if (this.stream.status === 'switching') {
-                                                                                                    _D('F:waitforstream', 'W: already switching, aborting!');
         return false;
       }
       if (this.options['clear-stream-cache'] && this.stream.key && this.cp.streamManager.streams.hasOwnProperty(this.stream.key)) {
-                                                                                                    _D('F:waitforstream', 'W: clearing cache of previous stream', this.stream.key);
         
         delete this.cp.streamManager.streams[this.stream.key];
         delete this.cp.streamManager.streams[cs._cacheKey];
       }
       this.stream.status = 'switching';
-                                                                                                    _D('F:waitforstream', 'W: now loading ', decodeURIComponent(cs._cacheKey), ' - was before: ', decodeURIComponent(this.stream.key));
       var streamkey = decodeURIComponent(cs._cacheKey);
       var pos = streamkey.indexOf('{');
       if (pos !== -1) {
@@ -418,6 +412,7 @@ var TweetfilterPrototype = function() {
         case 'UserRecommendationsStream':
           this.stream.title = 'Who to follow: Suggestions'; 
         break;
+        case 'SuggestionCategoryMembersStream':
         case 'SuggestionCategoriesStream':
           this.stream.title = 'Who to follow: Interests'; 
         break;
@@ -440,13 +435,10 @@ var TweetfilterPrototype = function() {
       this.poll('findcomponents', 3);
       this.poll('refreshcss', ['filter', 'layout']);
       this.poll('setstreamtitle');            
-                                                                                                    _D('F:waitforstream', 'W:stream switched', decodeURIComponent(this.stream.key));
       return true;
     } else { //stream is loaded
-                                                                                                    _D('F:waitforstream', 'I:stream '+this.stream.namespace+' is ready');
       return true;
     }
-                                                                                                    _D('F:waitforstream', 'W:stream is still loading');
     return false;      
   };
   
@@ -482,12 +474,11 @@ var TweetfilterPrototype = function() {
         params = true;
       }
       if (this.polling.events.hasOwnProperty(event)) {
-                                                                                                    _D('F:poll', 'queueing', event, ' for tick',this.polling.tick+1,'with params:', params);
         switch(typeof params) {
           case 'object': //merge object parameter
             if (typeof this.polling.queued[event] === 'object') { //array
               for (var p=0,len=params.length;p<len;p++) {
-                if ($.inArray(params[p], this.polling.queued[event]) === -1) {
+                if (!~this.polling.queued[event].indexOf(params[p])) {
                   this.polling.queued[event].push(params[p]);
                 }
               }
@@ -502,7 +493,6 @@ var TweetfilterPrototype = function() {
             }
           break;
         }
-                                                                                                    _D('F:poll', 'queued event ', event, ', params:', this.polling.queued[event]);
       }
     }
   };
@@ -516,7 +506,6 @@ var TweetfilterPrototype = function() {
         this.widget.toggleClass('busy', true);
       } 
       var params = false, result, repeating = false, runsleft = 0;
-                                                                                                    _D('F:_poll', 'I:running poll tick', ++this.polling.tick);
       this.polling.busy = true;      
       this.polling.running = $.extend({}, this.polling.running, this.polling.queued);
       this.polling.queued = {}
@@ -526,7 +515,6 @@ var TweetfilterPrototype = function() {
           this.polling.working = false;
           this.widget.removeClass('busy');
 
-                                                                                                    _D('F:_poll', 'W:polling suspended by trigger!');
           return;        
         }
         if (this.polling.running.hasOwnProperty(e) && typeof this[e] === 'function' && this.polling.running[e] !== false) {
@@ -540,52 +528,43 @@ var TweetfilterPrototype = function() {
           } 
           if (this.waitforstream()) {
             if ((result = this[e](params)) ||  (repeating && runsleft <= 0)) {
-                                                                                                    _D('F:_poll', 'I:called function', e, 'returned', result,', repeating call:', repeating, ' - runs left', runsleft);
               this.polling.running[e] = false;
             } else {
-                                                                                                    _D('F:_poll', 'W:called function', e, 'returned', result, 'requeueing! repeating call: ', repeating, ' - runs left: ', runsleft);
               this.polling.stop = false;
             }
           } else { //waitforstream failed: not loaded or not a valid stream
-                                                                                                  _D('F:_poll', 'W:waitforstream still waiting!');
             if (!this.streamready()) {
-                                                                                                  _D('F:_poll', 'W:stream is not ready, breaking!');
+              this.polling.stop = false;
               break; 
             }
           }
         }
       }
       for (var q in this.polling.queued) {
-                                                                                                    _D('F:_poll', 'W:NOT stopping, found queued:', q, this.polling.queued);
         this.polling.stop = false;
         break;
       }
       if (!this.polling.stop) {
-                                                                                                    _D('F:_poll', 'W:breathing before next tick');
         this._breathe();
         return;
       } else {
-                                                                                                    _D('F:_poll', 'W:stopping, nothing queued!');
       }
       this.widget.removeClass('busy');
       
       this.polling.working = false;
-                                                                                                    _D('F:_poll', 'W:polling stopped.');
       this.polling.busy = false;
     }                                                                                               
   };
   
   //give a break before next poll
   Tweetfilter.prototype._breathe = function() {
-                                                                                                    _D('F:_breathe', 'D:breathing '+this._heartbeat+'ms in tick '+this.polling.tick+'!');
     if (this.polling.timeoutid === -1) {
       this.polling.timeoutid = setTimeout(twttr.bind(this, function () {
         this.polling.busy = false;
         this.polling.timeoutid = -1;
         this._poll();
       }), this._heartbeat);
-    } else _D('F:_breathe', 'D:NOT repolling tick '+this.polling.tick+', already queued!');
-  };
+    }   };
   
   Tweetfilter.prototype.refreshuser = function() {
     this.user = {
@@ -612,7 +591,6 @@ var TweetfilterPrototype = function() {
  
   //load settings from local storage. executed after widget was created
   Tweetfilter.prototype.loadsettings = function(imported) {
-                                                                                                    _D('F:loadsettings', this.user, twttr.currentUser.id, twttr.currentUser.screenName);
     if (!this.user.hasOwnProperty('id') || this.user.id != twttr.currentUser.id) {
       this.refreshuser();
     }
@@ -625,7 +603,6 @@ var TweetfilterPrototype = function() {
     } else {
       settings = settings[this.user.id];
     }
-                                                                                                    _D('F:loadsettings','loaded:', settings);
     if (typeof imported === 'undefined') {
       
       this.queries = [];
@@ -649,8 +626,8 @@ var TweetfilterPrototype = function() {
           }
         }
       }
-      if (typeof settings.friendstatus != 'undefined') {
-        this.friendids = settings.friendstatus;
+      if (settings.friendstatus) { //must be "false/0" or not set if not saved
+        this.friendstatus = settings.friendstatus;
       }
       this.status.messagesinceid = settings.hasOwnProperty('messagesinceid') ? settings.messagesinceid : -1;
       this.status.mentionsinceid = settings.hasOwnProperty('mentionsinceid') ? settings.mentionsinceid : -1;
@@ -685,7 +662,7 @@ var TweetfilterPrototype = function() {
         version: this.version,
         messagesinceid: this.status.messagesinceid > 0 ? this.status.messagesinceid : -1,
         mentionsinceid: this.status.mentionsinceid > 0 ? this.status.mentionsinceid : -1,
-        friendstatus: this.friendstatus.cache ? this.friendstatus : {expires:0,cache:false} //don't save too many friends
+        friendstatus: this.friendstatus.cache ? this.friendstatus : false //don't save too many friends
       };
       for (var q in this.queries) {
         settings[this.user.id].queries.push({
@@ -694,7 +671,6 @@ var TweetfilterPrototype = function() {
         });
       }
     }
-                                                                                                    _D('F:savesettings', settings);
     this.setvalue(':TWEETFILTER:', settings);
   };
 
@@ -702,11 +678,9 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.findcomponents = function() {
     var dashboard = twttr.app.currentPage().$node.find(".dashboard");
     var components = $("> div.component:not(.tf):not(:empty)", dashboard);
-                                                                                                    _D('F:findcomponents', 'identifying', components.length, 'components');
     for (var i=0,len=components.length,container;i<len && (container=components.eq(i));i++) {
       for (var c=0,clen=this.components.length,component;c<clen && (component=this.components[c]);c++) {
         if ($(component['path'], container).length) {
-                                                                                                    _D('F:findcomponents', 'I:found component', component.css, 'option:', component.option);
           if (component.option) this.enableoption(component.option);
           container.addClass('tf '+component.css);
           if (typeof component['callback'] === 'function') {
@@ -735,26 +709,22 @@ var TweetfilterPrototype = function() {
     if (typeof enabled === 'undefined') enabled = true;
     if (!$.isArray(option)) option = [option];
     for (var i=0,len=option.length,ia;i<len;i++) {
-                                                                                                    _D('F:enableoption', (enabled ? 'I:enable' : 'W:disable')+' option', option);
-      ia = $.inArray(option[i], this.disabledoptions);
+      ia = ~~this.disabledoptions.indexOf(option[i]);
       if (ia !== -1 && enabled) {
         this.disabledoptions.splice(ia,1);          
       } else if (ia === -1 && !enabled) {
         this.disabledoptions.push(option[i]);
       }
       if (this.widget) $('[data-option="'+option[i]+'"]', this.widget).closest('li').toggleClass('disabled', !enabled);
-                                                                                                    _D('F:enableoption', 'D:currently disabled options:', this.disabledoptions);
-                                                                                                    if (this.widget)  _D('F:enableoption', 'D:found options:', $('[data-option="'+option[i]+'"]', this.widget).length, 'setting "disabled" class to', !enabled);
     }
   };
   
   Tweetfilter.prototype.getoption = function(option) {
-    return this.options[option] && $.inArray(option, this.disabledoptions) === -1;
+    return this.options[option] && !~this.disabledoptions.indexOf(option);
   };
 
   //set an option
   Tweetfilter.prototype.setoption = function(option, status, clicked) {
-                                                                                                    _D('F:setoption','setting option', option, 'to', status, 'clicked:', clicked);
     if (typeof clicked !== 'boolean') { //will not refresh styles when not clicked
       clicked = false;
     }
@@ -775,7 +745,6 @@ var TweetfilterPrototype = function() {
     if (this.options.hasOwnProperty(option)) {
       this.options[option] = status; //set option
     } else {
-                                                                                                    _D('F:setoption','W:ignoring invalid option', option);
       return false;
     }
     switch(option) {
@@ -814,6 +783,7 @@ var TweetfilterPrototype = function() {
       case 'filter-links': /* filter all tweets with links */
       case 'filter-retweets': /* filter all retweets */
       case 'filter-media':  /* filter all media */
+      case 'tweets-fill-page':  /* load tweets until page is full */
         refresh = ['filter'];
       break;
       /* options changing the global layout */
@@ -885,10 +855,11 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.setstreamtitle = function() {
     //set on widget
     $('#tf-stream-title').html(this.stream.title);
-                                                                                                    _D('F:setstreamtitle', 'I:'+this.stream.title);
-    var sm;
+    var sm, cs;
     if ((sm = twttr.app.currentPage().streamManager)) {
-                                                                                                    _D('F:setstreamtitle', 'I:', this.stream.namespace+' ('+this.stream.activetab+')');
+      if ($('.subtabs', sm.$titleContainer).length) {
+        return true;
+      }
      //set in stream
       var textcontainer = $('> h2', sm.$titleContainer);
       if (!textcontainer.length) {
@@ -912,20 +883,20 @@ var TweetfilterPrototype = function() {
         $('> div.tf', textcontainer).remove();
         if (exclusivemode) {
           var filterlist = [];
-          if ($.inArray('replies', this.exclusive) > -1) {
+          if (~this.exclusive.indexOf('replies')) {
             filterlist.push(['<span class="replies"><b>Replies</b></span>'])
           }
-          if ($.inArray('retweets', this.exclusive) > -1) {
+          if (~this.exclusive.indexOf('retweets')) {
             filterlist.push(['<span class="retweets"><b>Retweets</b></span>'])
           }
-          if ($.inArray('links', this.exclusive) > -1) {
+          if (~this.exclusive.indexOf('links')) {
             filterlist.push(['<span class="links"><b>Tweets with links</b></span>'])
           }
-          if ($.inArray('media', this.exclusive) > -1) {
+          if (~this.exclusive.indexOf('media')) {
             filterlist.push(['<span class="media"><b>Tweets with media</b></span>'])
           }
           for (var i=0, len=this.queries.length, elen=this.exclusive.length, found=0; i<len && found<elen; i++) {
-            if ($.inArray(this.queries[i].id, this.exclusive) > -1) {
+            if (~this.exclusive.indexOf(this.queries[i].id)) {
               filterlist.push(['<span class="'+this.queries[i].type+'">'+this.queries[i].label+'</span>']);
               found++;
             }
@@ -936,14 +907,13 @@ var TweetfilterPrototype = function() {
         $('> em, > div.tf', textcontainer).remove();
         sm.$titleContainer.html('<h2>'+this.stream.title+'</h2>');
       }
-      return this.stream.title !== 'Initializing...';
+      return !!this.stream.title;
     }
     return false; 
   };
   
   //process items combining html stream and cache
   Tweetfilter.prototype.parseitems = function() { 
-                                                                                                    _D('F:parseitems', arguments);
     var cs, i=0, data, filteredcount, nextid, itemcount, uid, nextuid;
     if (!(cs = this.cs())) return false;
     switch(cs.streamItemType) {
@@ -966,7 +936,6 @@ var TweetfilterPrototype = function() {
             me: []         //tweets by current user
           };
         }
-                                                                                                  _D('F:parseitems', 'items in cache:', cs.items.length, ' already processed:', cs.filter.items.length);
         if (cs.filter.items.length < cs.items.length) {
           i = 0;
           filteredcount = cs.filter.items.length;
@@ -1032,19 +1001,16 @@ var TweetfilterPrototype = function() {
                 mentioned = mention.screen_name.toLowerCase();
                 if (mentioned === this.user.name) {
                   tweet.mentionsme = true;
-                                                                                                  // _D('F:parseitems','L:found mention of ', this.user.name);
                 }
                 if (mention.indices[0] === 0) {
                   tweet.isreply = true; //start of a discussion may not be a reply to a specific tweet, but is still a reply for user's eye, so for the filter
                 } else if (!tweet.rt && mention.indices[0] === 3 && tweet.text.indexOf('rt ')===0) { //possible classic retweet/quote/mention: RT @username
                   tweet.rt = {username: mentioned};
                 }
-                                                                                                  // _D('F:parseitems','L:mention found: @', mentioned, 'at', mention.indices);
               }
             }
             tweet.text = this.decodehtml($.trim(tweet.text));
             if (data.hasOwnProperty('expandedurls')) {
-                                                                                                    _D('F:parseitems','W:found expandedurls in tweet data!');
               tweet.text += data.expandedurls;
               delete data['expandedurls'];
             }
@@ -1077,7 +1043,6 @@ var TweetfilterPrototype = function() {
             filteredcount++;
             i++;
           }
-                                                                                                    _D('F:parseitems','I:items parsed!');
         }
         this.poll('parsestream');    //always trigger parsestream, new items are already cached before they are displayed 
         break;
@@ -1089,10 +1054,8 @@ var TweetfilterPrototype = function() {
             users: {}    //timeline index with user as primary key. 
           };
         }
-                                                                                                    _D('F:parseitems', 'items in cache:', cs.items.length, ' already processed:', cs.filter.items.length);
         if (cs.filter.items.length < cs.items.length) {
           i = 0;
-                                                                                                    _D('F:parseitems', 'parsing from',cs.filter.items.length,'to',cs.items.length-1);
           filteredcount = cs.filter.items.length;
           nextid = cs.filter.items.length;
           itemcount = cs.items.length;
@@ -1116,7 +1079,6 @@ var TweetfilterPrototype = function() {
             filteredcount++;
             i++;
           }
-                                                                                                    _D('F:parseitems','I:items parsed!');
         }
         this.poll('parsestream');    //always trigger parsestream, new items are already cached before they are displayed 
         break;
@@ -1152,7 +1114,6 @@ var TweetfilterPrototype = function() {
       this.poll('parseitems');
       return true;
     }
-                                                                                                    _D('F:parsestream', 'fired', cs.$node, this.stream);
     var items = $('> div.stream-items > div.stream-item:not([id])', cs.$node);                      //parse stream only once, distribute ids
     if (items.length) {
       var item, itemid, id, i, imax, tweet, user, li, reparseitems = false;
@@ -1171,7 +1132,7 @@ var TweetfilterPrototype = function() {
               }
               tweet.ismedia = $("span.icons span.media", item).length > 0;
               if (tweet.ismedia) {
-                li = $.inArray(tweet.id, cs.filter.links);
+                li = ~~cs.filter.links.indexOf(tweet.id);
                 if (li > -1) {
                   tweet.haslinks = false; //treat media separately as if it had no links
                   cs.filter.links.splice(li, 1);
@@ -1187,9 +1148,7 @@ var TweetfilterPrototype = function() {
                         '<a class="tf quote" data-itemid="'+tweet.id+'" title="Quoted Retweet"><span><i class="tf-icon"></i> <b>Quote</b></span></a>'+
                         '<a class="tf menu" data-itemid="'+tweet.id+'" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a>')
                 .before('<span class="tf-via">via '+tweet.via+'</span>');
-                                                                                                    _D('F:parsestream', 'I:itemid', itemid, 'found, id:',id);
             } else {
-                                                                                                    _D('F:parsestream', 'W:itemid not found in filtered:',itemid);
               reparseitems = true;                                                                                      
             }
           }
@@ -1202,10 +1161,8 @@ var TweetfilterPrototype = function() {
               user = cs.filter.items[id];
               $('> div.stream-item-content', item.attr('id', 't'+id)).attr('id', 'i'+id);
               $('span.full-name', item).after('<i class="tfu u'+user.userid+'"></i>');
-                                                                                                     _D('F:parsestream', 'I:itemid', itemid, 'found, id:',id);
             } else {
               reparseitems = true;
-                                                                                                    _D('F:parsestream', 'W:itemid not found in filtered:',itemid);
             }
           }
           break;
@@ -1234,7 +1191,6 @@ var TweetfilterPrototype = function() {
   
   //check tweet for any match or a specific search object 
   Tweetfilter.prototype.checktweet = function(tweet, search) {
-                                                                                                    var f=_F('checktweet');
      var cs = this.cs(), query, ismatch;
      if (cs && this.streamready()) {
       var searches = [];
@@ -1244,7 +1200,6 @@ var TweetfilterPrototype = function() {
         tweet.matches = [];
         searches = this.queries;
       }
-                                                                                                    _D(f, 'checking tweet', tweet, 'searches', searches);
       for (var s=0, smax=searches.length; s < smax; s++) {
         query=searches[s];
         ismatch = false;
@@ -1252,70 +1207,56 @@ var TweetfilterPrototype = function() {
         if (query.simple) {
           if (query.regular) {
             ismatch = query.regex.test(tweet.text);
-                                                                                                    _D(f, 'check for regular match:', query.rx, 'in', tweet.text, ':', ismatch)
           } else 
           if (query.exact) {
             ismatch = this.findexactmatch(tweet.text, query.search);
-                                                                                                    _D(f, 'check for exact match:', query.search, 'in', tweet.text, ':', ismatch)
           } else {
             ismatch = tweet.text.indexOf(query.search) > -1;
-                                                                                                    _D(f, 'check for simple match:', query.search, 'in', tweet.text, ':', ismatch)
           }
         } else 
         //user filter: regular and simple (lowercase) match allowed
         if (query.user) {
           if (query.regular) {
             ismatch = query.regex.test(tweet.username) || (tweet.rt && query.regex.test(tweet.rt.username))
-                                                                                                    _D(f, 'check for regular user match:', query.rx, 'in', tweet.username, ':', ismatch)
           } else {
             ismatch = (tweet.username === query.search) || (tweet.rt && tweet.rt.username === query.search);
-                                                                                                    _D(f, 'check for user match:', query.search, '==', tweet.username, tweet.rt ? tweet.rt.username : '', ':', ismatch)
           }
         } else 
         //source filter: regular, exact and simple match (=contains keyword) allowed
         if (query.source) {
           if (query.regular) {
             ismatch = query.regex.test(tweet.source) || (tweet.rt && tweet.rt.source && query.regex.test(tweet.rt.source)); //checking source of OP and RT-user
-                                                                                                    _D(f, 'check for regular source match:', query.rx, 'in', tweet.source, tweet.rt ? tweet.rt.source : '', ':', ismatch)
           } else 
           if (query.exact) {
             ismatch = this.findexactmatch(tweet.source, query.search) || (tweet.rt && tweet.rt.source && this.findexactmatch(tweet.rt.source, query.search));
-                                                                                                    _D(f, 'check for exact source match:', query.search, 'in', tweet.source, tweet.rt ? tweet.rt.source : '', ':', ismatch)
           }else {
             ismatch = tweet.source.indexOf(query.search) > -1 || (tweet.rt && tweet.rt.source && tweet.rt.source.indexOf(query.search) > -1);
-                                                                                                    _D(f, 'check for source match:', query.search, 'in', tweet.source, tweet.rt ? tweet.rt.source : '', ':', ismatch)
           }
         } else 
         //name filter: regular, exact and simple match (=contains keyword) allowed
         if (query.name) {
           if (query.regular) {
             ismatch = query.regex.test(tweet.name); //do not filter here the retweeting user's real name. it's visible nowhere, would be irritating
-                                                                                                    _D(f, 'check for regular name match:', query.rx, 'in', tweet.name, ':', ismatch)
           } else 
           if (query.exact) {
             ismatch = this.findexactmatch(tweet.name, query.search);
-                                                                                                    _D(f, 'check for exact name match:', query.search, '=', tweet.name, ':', ismatch)
           } else {
             ismatch = tweet.name.toString().indexOf(query.search) !== -1;
-                                                                                                    _D(f, 'check for simple name match:', query.search, 'in', tweet.name, ':', tweet.name.indexOf(query.search), ismatch)
           }
         }
-        if (ismatch && $.inArray(query.id, tweet.matches) === -1) {
+        if (ismatch && !~tweet.matches.indexOf(query.id)) {
           if (!cs.filter.matches.hasOwnProperty(query.index)) {
             cs.filter.matches[query.index] = [tweet.id];
-          } else if ($.inArray(tweet.id, cs.filter.matches[query.index]) === -1) {
+          } else if (!~cs.filter.matches[query.index].indexOf(tweet.id)) {
             cs.filter.matches[query.index].push(tweet.id);
           }
-                                                                                                    _D(f, 'I:pushing match', query.id, '=', query.index, 'on tweet', tweet.id);
           tweet.matches.push(query.id);
         }        
       }
-    } else _D(f, 'W:stream is not ready!');
-  };
+    }   };
   
   Tweetfilter.prototype.refreshfiltercss = function(instantly) {
     if (typeof instantly === 'undefined') instantly = false;
-                                                                                                    _D('F:refreshfiltercss', 'refreshing filter css');
     if (!instantly) {
       this.poll('refreshcss', ['filter']);
     } else {
@@ -1347,7 +1288,7 @@ var TweetfilterPrototype = function() {
       source:  /^\-?(?:v(?:ia)?\:\s*|\:@)(.+)$/, // via: echophon or via:web or v:iphone or :@sometwitterbot (short syntax)
       name:    /^\-?(?:by?\:\s*|\?@)(.+)$/, // by: john doe or ?@john doe  (short syntax)
       exact:   /^\-?"(.+)"$/, //case-insensitive exact phrase surrounded by stopchars like space or period (this.stopchars)
-      simple:  /^'?\-?('?(.+))/ //anything else is simple text search or regex (within text and within expanded links text), trim leading escape character (single quote)
+      simple:  /^\-?'?(.+)/ //anything else is simple text search/exclude or regex (within text and within expanded links text), trim leading escape character (single quote)
     }
     var matches, regularmatch, exactmatch;
     for (var type in types) {
@@ -1368,13 +1309,13 @@ var TweetfilterPrototype = function() {
             search.simple = true;
             search.raw = matches[0];
             search.index = search.raw.toLowerCase();
-            if (search.raw[0] !== "'" && matches[1]!==matches[2]) { //simple search was prefixed with single quote after hyphen
-              search.label = matches[2];
-              search.search = search.sortby = matches[2].toLowerCase(); //always do case insensitive search / sort
-            } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
+            if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
               search.label = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/im');
               search.search = search.rx = regularmatch[2];
               search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
+            } else {
+              search.label = matches[1];
+              search.search = search.sortby = matches[1].toLowerCase(); //always do case insensitive search / sort
             }
           break;
           case 'user': //match tweets by user
@@ -1469,13 +1410,11 @@ var TweetfilterPrototype = function() {
       return;
     }
     var exclusivemode = this.exclusive.length > 0, q;
-                                                                                                    _D('F:setquerystatus', 'set query', queryid, 'to status', status);
     for (var i=0,len=this.queries.length;i<len;i++) {
       if (this.queries[i].id === +queryid) {
         switch(status) {
           case -1: //delete from filter
-                                                                                                    _D('F:setquerystatus', 'query', this.queries[i].id, 'at index', $.inArray(this.queries[i].id, this.exclusive));
-            if (exclusivemode && $.inArray(this.queries[i].id, this.exclusive) > -1) { //deleting an exclusive filter
+            if (exclusivemode && ~this.exclusive.indexOf(this.queries[i].id)) { //deleting an exclusive filter
               this.setexclusive(this.queries[i].id); //remove from exclusive
             }
             this.queries.splice(i, 1);
@@ -1536,25 +1475,19 @@ var TweetfilterPrototype = function() {
       $message = $(msg);
       if (options.type) {
         var container = $('span.'+options.type, $message)
-                                                                                                    _D('F:showmessage', 'I:show message of type', options.type);
         if (container.length) {
           var oldcount = 0; 
           if (options.count) {
             if ((oldcount = container.html().match(/[0-9]+/))) {
-                                                                                                    _D('F:showmessage', 'I:found old count of type', options.type, ':', oldcount, 'new count:', +oldcount[1]+options.count);
               oldcount = +oldcount[1]+options.count;
               message.replace(/[0-9]+/, oldcount);
             }
-                                                                                                    _D('F:showmessage', 'I:found options.count', options.count, 'old count:', +container.attr('data-count'), 'new count:', oldcount);
           } 
-                                                                                                    _D('F:showmessage', 'I:replacing message', message);
           $('span.'+options.type, $message).replaceWith(message);
         } else {
-                                                                                                    _D('F:showmessage', 'I:appending message', message);
           $('span:last', $message).after(message);
         }       
       } else {
-                                                                                                    _D('F:showmessage', 'I:appending message', message);
         $('span:last', $message).after(message);
       }
     }
@@ -1570,7 +1503,6 @@ var TweetfilterPrototype = function() {
             if (result.response.length) {
               if (that.status.messagesinceid <= 0) {
                 that.status.messagesinceid = result.response[0].id;
-                                                                                                    _D('F:checkreceived', 'sinceid:'+that.status.messagesinceid);
                 return;
               }
               that.status.messagesinceid = result.response[0].id;
@@ -1591,7 +1523,6 @@ var TweetfilterPrototype = function() {
             if (result.response.length) {
               if (that.status.mentionsinceid <= 0) { 
                 that.status.mentionsinceid = result.response[0].id;
-                                                                                                    _D('F:checkreceived', 'W:first fetch, not alerting.', 'new sinceid:'+that.status.mentionsinceid);
                 return;
               }
               that.status.mentionsinceid = result.response[0].id;
@@ -1641,7 +1572,6 @@ var TweetfilterPrototype = function() {
 
 
   Tweetfilter.prototype.tweetclickvia = function(e) {
-                                                                                                    _D('F:tweetclickvia', 'opening link in new tab');
     window.open(e.target.getAttribute('href'));
     return false;
   };
@@ -1657,26 +1587,19 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.tweettextmouseup = function(e) {
-                                                                                                    var f=_F('tweettextmouseup');
-                                                                                                     _D(f, e);
     if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
       if (window.getSelection().toString().length) {
-                                                                                                     _D(f, 'I:found selection!');
         e.stopImmediatePropagation();
         return false;
-      } else _D(f, 'W:no selection');
-    }
+      }     }
     return true;
   };
   
   Tweetfilter.prototype.tweettextmousedown = function(e) {
-                                                                                                    var f=_F('tweettextmousedown');
-                                                                                                    _D(f, e);
     if (e.which <3) {
       if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
         var selected;
         if ((selected = this.getselection())) {
-                                                                                                    _D(f, 'adding new query', ((e.which === 2 || e.shiftKey) ? '-' : '') + selected);
           var queryid = this.addquery((e.which === 2 || e.shiftKey ? "-'" : "'") + selected, true, (e.which === 2 || e.shiftKey));
           if (queryid && e.ctrlKey) {
             this.setexclusive(queryid);
@@ -1687,14 +1610,12 @@ var TweetfilterPrototype = function() {
           this.poll('removeselection');
           e.stopImmediatePropagation();
           return false;
-        } else _D(f, 'W:no selection');
-      }
+        }       }
     }
     return true;
   };
 
   Tweetfilter.prototype.filtermenuleave = function(e) {
-                                                                                                    _D('F:filtermenuleave');
     var target = $(e.target).is('ul.tf-menu') ? $(e.target) : $(e.target).parents('ul.tf-menu');
     if (target.length) target.remove();
   };
@@ -1712,9 +1633,7 @@ var TweetfilterPrototype = function() {
           var cs = this.cs();
           if (cs.filter.itemids.hasOwnProperty(itemid)) {
             var item = cs.filter.items[cs.filter.itemids[itemid]];
-                                                                                                    _D('F:filter_actions_mousedown', 'item found', item);
           } else {
-                                                                                                    _D('F:filter_actions_mousedown', 'W:item', itemid, 'not found in cache!');
             return false;
           }
 
@@ -1764,17 +1683,14 @@ var TweetfilterPrototype = function() {
                   },
                   origin: "Tweetfilter "+this.version
                 }).open().focus();        
-              } else _D('F:filter_actions_mousedown', 'W:item', itemid, 'not found in items cache!');
-
+              } 
               break;
             case 'menu':
               $('ul.tf-menu', cs.$node).remove();
-                                                                                                    _D('filter_menu_mousedown');
               $(e.target).parents('span.tweet-actions').prepend(this.tweetfiltergetmenu(streamitem, cs.filter.itemids[itemid]));
               e.stopImmediatePropagation();
               break;
             case 'add':
-                                                                                                    _D('F:filter_actions_mousedown', 'add to filter', e.target);
               if (e.which <3) {
                 var queryid = this.addquery((e.which === 2 || e.shiftKey ? '-' : '') + e.target.getAttribute('data-query'), true, e.which === 2 || e.ctrlKey );
                 if (queryid && e.ctrlKey) {
@@ -1802,7 +1718,6 @@ var TweetfilterPrototype = function() {
   };
 
   Tweetfilter.prototype.tweetfiltergetmenu = function(item, id) {
-                                                                                                    _D('F:tweetfiltergetmenu', item, id);
     var menu = '<ul class="tf-menu drop-down">';
     var username = $('a.tweet-screen-name', item).html();
     menu += '<li class="user"><a class="tf add" data-query="@@'+username+'" title="filter tweets from @'+username+'">@'+username+'</a></li>';
@@ -1816,7 +1731,7 @@ var TweetfilterPrototype = function() {
       var source = $(this).html().substr(4);
       if (source) {
         source = source.replace(/<\S[^><]*>/g, '');
-        if ($.inArray(source, sources) === -1) {
+        if (!~sources.indexOf(source)) {
           menu += '<li class="source"><a class="tf add" data-query="via:'+source+'" title="filter tweets via '+source+'">via '+source+'</a></li>';
           sources.push(source);
         }
@@ -1836,14 +1751,14 @@ var TweetfilterPrototype = function() {
         switch(linkclass) {
           case 'twitter-hashtag':
             var hashtag = link.text();
-            if (hashtag && $.inArray(hashtag.toLowerCase(), hashtags) === -1) {
+            if (hashtag && !~hashtags.indexOf(hashtag.toLowerCase())) {
               hashtagsmenu += '<li class="hashtag"><a class="tf add" data-query="'+hashtag+'" title="filter tweets tagged '+hashtag+'">'+hashtag+'</a></li>';
               hashtags.push(hashtag.toLowerCase());
             }
             break;
           case 'twitter-atreply':
             var mention = link.attr('data-screen-name');
-            if (mention && $.inArray(mention, mentions) === -1) {
+            if (mention && !~mentions.indexOf(mention)) {
               mentionsmenu += '<li class="mention"><a class="tf add" data-query="@'+mention+'" title="filter tweets mentioning @'+mention+'">@'+mention+'</a></li>';
               mentions.push(mention);
             }
@@ -1854,7 +1769,7 @@ var TweetfilterPrototype = function() {
             if (!linkaddress) linkaddress = link.attr('href');
             if (linkaddress) {
               var domain = linkaddress.match(/^[a-z]+\:\/\/(?:www\.)?([^\/]+)/);
-              if (domain && $.inArray(domain[1], domains) === -1) {
+              if (domain && !~domains.indexOf(domain[1])) {
                 domain = domain[1];
                 linksmenu += '<li class="domain"><a class="tf add" data-query="'+domain+'" title="filter tweets linking to '+domain+'">'+domain+'</a></li>';
                 domains.push(domain);
@@ -1868,10 +1783,7 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.refreshfriends = function() { 
-                                                                                                    var f=_F('refreshfriends');
-                                                                                                    _D(f, 'refreshing friends, stream is', this.stream.status);
     if (!this.options['show-friends']) {
-                                                                                                    _D(f, 'option is disabled.')
       if (this.timeids.refreshfriends !== -1) {
         window.clearInterval([this.timeids.refreshfriends,this.timeids.refreshfriends=-1][0]);
       }
@@ -1908,19 +1820,6 @@ var TweetfilterPrototype = function() {
             this.cursors.followerids.fetched && !this.cursors.followerids.fetching) {
          
 
-           //<debug> test what happens with friend status if you have really many following/followers
-           /*  var uid;
-            for (var i=0;i<100000;i++) {
-              if (i % 3 === 0) { //try to build a nearly realistic following/follower situation
-                uid = ''+Math.floor(Math.random()*10000000001);
-                this.cursors.friendids.items.push(uid);
-                this.cursors.followerids.items.push(uid);
-              } else {
-                this.cursors.friendids.items.push(''+Math.floor(Math.random()*10000000001));
-                this.cursors.followerids.items.push(''+Math.floor(Math.random()*10000000001));
-              }
-            }*/
-            //</debug> during tests, saving 250.000 friends exceeded localstorage memory size. 100.000 went just fine. setting limit for cached friends to 42.000
                         
           
           this.friendstatus = { expires: parseInt(new Date().getTime() / 1000)+600, cache:true }; //friend status expires
@@ -1943,7 +1842,6 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.refreshcursor = function(cursor) {
-                                                                                                    var f = _F('refreshcursor');
     if (!this.cursors[cursor.name]) { //first time
       this.cursors[cursor.name] = $.extend({}, cursor, {
         nextcursor: '-1',
@@ -1956,28 +1854,22 @@ var TweetfilterPrototype = function() {
     cursor.nextcursor = '-1';
     cursor.items = [];
     if (cursor.fetching) {
-                                                                                                    _D(f, 'W:suspended call, already fetching!');
       return true;
     }
     if (cursor.nextcursor === '0') {
-                                                                                                    _D(f, 'W:aborted fetching, no more to fetch (nextcursor was 0)');
       return true;      
     }
     cursor.fetching = true;
-                                                                                                    _D(f, 'I:'+cursor.name+' now fetching.', cursor);
     this.fetchcursor(cursor);
     return true;
   }
   
   
   Tweetfilter.prototype.fetchcursor = function(cursor) {
-                                                                                                    var f=_F('fetchcursor');
-                                                                                                    _D(f, 'cursor:', cursor);
     var that = this;
     var params = {
       cursor: cursor.nextcursor,
       success: function(resp, info) {
-                                                                                                    _D(f, 'success', arguments, info);
         if (info.response[cursor.resultset].length) {
           cursor.items = cursor.items.concat(info.response[cursor.resultset]);
         }
@@ -2030,14 +1922,10 @@ var TweetfilterPrototype = function() {
 
   //walk through links, expand or collapse
   Tweetfilter.prototype.parselinks = function() {
-                                                                                                    var f=_F('parselinks');
     if (!this.status.initialized) return false;
-                                                                                                    _D(f, this.expanded);
     var showexpanded = this.options['expand-links'];
     var links = $('a.twitter-timeline-link[title]'), shownurl, shorturl, expandedurl, titleurl, checktweets=[];
-                                                                                                    _D(f, 'Found', links.length, 'links on page.');
     for (var l=0,llen=links.length,link;l<llen && (link=links.eq(l));l++) {
-                                                                                                    _D(f, 'processing link', link.get(0));
       if (!link.is('[data-shorturl]')) {
         shorturl = link.attr('href');
         link.attr('data-shorturl', shorturl);
@@ -2052,7 +1940,6 @@ var TweetfilterPrototype = function() {
           link.html(shorturl);
         }
       }
-                                                                                                    _D(f, (expandedurl != titleurl ? 'W:': 'D:')+'expandedurl:', expandedurl, 'shownurl', shownurl, 'titleurl:', titleurl);
       if (expandedurl != titleurl) { //has link been expanded since last run
         link.attr('data-expandedurl', titleurl)/*.attr('href', showexpanded ? titleurl : shorturl)*/;
         var itemid, id;
@@ -2066,44 +1953,33 @@ var TweetfilterPrototype = function() {
             } else {
               itemid = item.attr('data-item-id');
               if (!itemid) {
-                                                                                                    _D(f, 'E:id and itemid not found!', item);
                 return false;
               }
               id = cs.filter.itemids[itemid]; 
             }
-                                                                                                    _D(f, 'tweet id:', id);
             
             if (id) {
-                                                                                                    _D(f, 'searching tweet in filter index:', itemid);
               
               cs.filter.items[id].text += "\n"+titleurl.toLowerCase();
-                                                                                                    _D(f, 'added link to text:', cs.filter.items[id].text);
-                                                                                                    _D(f, 'checking tweet:', cs.filter.items[id]);
              // this.checktweet(cs.filter.items[id]);
               checktweets.push(id);
               this.refreshfiltercss();
             } else {
-                                                                                                    _D(f, 'searching tweet in cache:', itemid);
               var items = cs.items;
               for (var i=0,len=items.length;i<len;i++) {
                 if (items[i].id === itemid) {
-                                                                                                    _D(f, 'found item with id ', itemid);
                   if (!items[i].hasOwnProperty('expandedurls')) {
                     items[i].expandedurls = '';
                   }
-                                                                                                    _D(f, 'caching in item expanded urls: ', titleurl);
                   items[i].expandedurls += "\n"+titleurl.toLowerCase();
                 }
               }
             }
           } else {
-                                                                                                    _D(f, 'W:stream is not ready');
             return false;
           }
-        } else _D(f, 'W:stream item not found!');
-      }
+        }       }
     }
-                                                                                                    _D(f, 'check tweets', checktweets);
     if (checktweets.length) {
       checktweets = this.arrayunique(checktweets);
       for (var c=0,cmax=checktweets.length;c<cmax;c++) {
@@ -2116,9 +1992,7 @@ var TweetfilterPrototype = function() {
   
   //create the widget and bind events, triggers loadsettings
   Tweetfilter.prototype.createwidget = function() {
-                                                                                                    _D('F:createwidget', 'entering function, widget:', this.widget);
     if (!this.widget) {
-                                                                                                    _D('F:createwidget', 'I:creating widget');
       this.widget = $([
         '<div id="tf" style="display:none">',
           '<div class="tf-header">',
@@ -2129,13 +2003,13 @@ var TweetfilterPrototype = function() {
             '</div>',
             '<ul class="tf-filters">',
               '<li class="passed">',
-                '<a data-option="filter-inverted" title="show passed tweets">',
+                '<a data-option="filter-inverted" title="show passed Tweets">',
                   '<i>Passed</i>',
                   '<b><span id="tf-count-passed">0</span></b>',
                 '</a>',
               '</li>',
               '<li class="invert">',
-                '<a data-option="filter-inverted" title="show filtered tweets">',
+                '<a data-option="filter-inverted" title="show filtered Tweets">',
                   '<i>Filtered</i>',
                   '<b><span id="tf-count-filtered">0</span></b>',
                 '</a>',
@@ -2144,7 +2018,7 @@ var TweetfilterPrototype = function() {
                 '<a class="tf-logo" data-option="filter-minimized" title="toggle Tweetfilter layout"></a>',
               '</li>',
               '<li class="filter">',
-                '<a data-option="filter-links" title="filter tweets with links">',
+                '<a data-option="filter-links" title="filter Tweets with links">',
                   '<i>Links</i>',
                   '<b id="tf-count-links">0</b>',
                 '</a>',
@@ -2156,7 +2030,7 @@ var TweetfilterPrototype = function() {
                 '</a>',
               '</li>',
               '<li class="filter">',
-                '<a data-option="filter-retweets" title="filter all retweets">',
+                '<a data-option="filter-retweets" title="filter all Retweets">',
                   '<i>Retweets</i>',
                   '<b id="tf-count-retweet">0</b>',
                 '</a>',
@@ -2172,7 +2046,7 @@ var TweetfilterPrototype = function() {
           '<div class="tf-stream">',
             '<ul class="checks">',
               '<li class="streamtitle"><span id="tf-stream-title"></span></li>',
-              '<li class="disable"><a data-option="filter-disabled" title="show all tweets"><b></b>disable filter</a></li>',
+              '<li class="disable"><a data-option="filter-disabled" title="show all Tweets"><b></b>disable filter</a></li>',
             '</ul>',
           '</div>',
           '<ul class="tf-tabs">',
@@ -2222,19 +2096,19 @@ var TweetfilterPrototype = function() {
             '</ul>',
             '<div data-tab="filter" class="active">',
               '<ul class="checks">',
-                '<li><a data-option="skip-mentionsme" class="filter" title="skip tweets mentioning me"><b></b>skip mentioning me</a></li>',
-                '<li><a data-option="skip-me" class="filter" title="skip tweets written by me"><b></b>skip my posts</a></li>',
+                '<li><a data-option="skip-mentionsme" class="filter" title="skip Tweets mentioning me"><b></b>skip mentioning me</a></li>',
+                '<li><a data-option="skip-me" class="filter" title="skip Tweets written by me"><b></b>skip my posts</a></li>',
                 '<li><a data-option="add-selection" class="filter" title="add selected text to filter after click"><b></b>add selection to filter</a></li>',
-                '<li><a data-option="highlight-mentionsme" title="highlight tweets mentioning me"><b></b>highlight mentioning me</a></li>',
+                '<li><a data-option="highlight-mentionsme" title="highlight Tweets mentioning me"><b></b>highlight mentioning me</a></li>',
               '</ul>',
             '</div>',
             '<div data-tab="timeline">',
               '<ul class="checks">',
                 '<li><a data-option="show-friends" title="show who follows you / who you follow"><b></b>show friend status</a></li>',
-                '<li><a data-option="show-via" title="show tweet source"><b></b>show via in tweets</a></li>',
-                '<li><a data-option="show-br" title="show line breaks in tweets"><b></b>show line breaks</a></li>',
-                '<li><a data-option="expand-new" title="immediately show new tweets"><b></b>expand new tweets</a></li>',
-                '<li><a data-option="expand-links" title="expand shortened links in tweets"><b></b>expand links</a></li>',
+                '<li><a data-option="show-via" title="show tweet source"><b></b>show via in Tweets</a></li>',
+                '<li><a data-option="show-br" title="show line breaks in Tweets"><b></b>show line breaks</a></li>',
+                '<li><a data-option="expand-new" title="immediately show new Tweets"><b></b>expand new Tweets</a></li>',
+                '<li><a data-option="expand-links" title="expand shortened links in Tweets"><b></b>expand links</a></li>',
                 '<li><a data-option="small-links" title="smaller link size"><b></b>small links</a></li>',
               '</ul>',
             '</div>',
@@ -2267,6 +2141,7 @@ var TweetfilterPrototype = function() {
             '<div data-tab="more">',
               '<ul class="checks">',
                 '<li><a data-option="clear-stream-cache" title="always reload the timeline after page switch (which is faster on some browsers)"><b></b>disable timeline cache</a></li>',
+              //'<li><a data-option="tweets-fill-page" title="always try to load Tweets until page is full"><b></b>fill page with Tweets</a></li>', TODO: use loadMoreTweets and poll function until 18-20 tweets are visible
                 '<li><a title="drag to your favorites bar" id="tf-export-settings">Tweetfilter settings</a></li>',
               '</ul>',
               '<div class="about">',
@@ -2311,7 +2186,6 @@ var TweetfilterPrototype = function() {
           }
           if ((queryid = that.addquery(query))) {
             $('#tf-filter-add').val('').focus();
-                                                                                                    _D('F:addtofilterinput', e, queryid, $('#tf-filter-add').val());
             var tab = $('a[data-tab='+(query[0] === '-' ? 'excludes' : 'filters')+']', that.widget); //set active tab excluded or filtered
             if (!tab.closest('li').hasClass('active')) {
               tab.trigger('click');
@@ -2347,12 +2221,12 @@ var TweetfilterPrototype = function() {
             case 2:
               var exclusiveoption;
               if (optionname.substr(0,6)=='filter' && (exclusiveoption=optionname.substr(7)) &&
-                  $.inArray(exclusiveoption, ['replies','retweets','media','links']) > -1) 
+                  ~['replies','retweets','media','links'].indexOf(exclusiveoption)) 
               {
                 that.setexclusive(exclusiveoption);
                 sender.toggleClass('exclusive');
-                this.poll('refreshfilterlist');            
-                this.poll('setstreamtitle');            
+                that.poll('refreshfilterlist');            
+                that.poll('setstreamtitle');            
                 that.refreshfiltercss();
               } 
               break;
@@ -2361,10 +2235,19 @@ var TweetfilterPrototype = function() {
         return false;
       })
       //delete a query from the list clicking 'x'
-      .delegate('a.x', 'click', function() {
-        var queryid = $(this).prev().attr('data-queryid');
+      .delegate('a.x', 'click', function(e) {
+        var query, queryid = +$(this).prev().attr('data-queryid');
         if (queryid) {
-          that.setquerystatus(queryid, -1);
+          if (e.ctrlKey) { //edit query with ctrl+x(click)
+            for (var i=0,imax=that.queries.length;i<imax && (query=that.queries[i]);i++) {
+              if (query.id === queryid) {
+                $('#tf-filter-add').val(query.raw).toggleClass('active', true).focus();
+                break;
+              }
+            }
+          } else {
+            that.setquerystatus(queryid, -1);
+          }
         }
         return false;
       })
@@ -2459,7 +2342,7 @@ var TweetfilterPrototype = function() {
       if (!queryfound) return;
     }
     var exclusivemode = this.exclusive.length > 0;
-    var i = exclusivemode ? $.inArray(queryid, this.exclusive) : -1;
+    var i = exclusivemode ? ~~this.exclusive.indexOf(queryid) : -1;
     if (i === -1) {
       if (typeof queryid === 'number') {
         this.exclusive.push(queryid);
@@ -2493,7 +2376,6 @@ var TweetfilterPrototype = function() {
   //refresh widget filter check list
   Tweetfilter.prototype.refreshfilterlist = function() {
     if (!this.widget) return true; 
-                                                                                                    _D('F:refreshfilterlist');
     var query;
     var listitems = {
       excludes: [],
@@ -2516,7 +2398,7 @@ var TweetfilterPrototype = function() {
         case 'source':action += ' via';break;
         default:action += ' containing';break;
       }
-      listitems[category].push('<li class="'+query.type+(!query.count ? ' notfound' : '')+(exclusivemode && $.inArray(query.id, this.exclusive) > -1 ? ' exclusive' : '')+'">'+
+      listitems[category].push('<li class="'+query.type+(!query.count ? ' notfound' : '')+(exclusivemode && ~this.exclusive.indexOf(query.id) ? ' exclusive' : '')+'">'+
          '<span>'+
            '<a data-queryid="'+query.id+'"'+(query.enabled ? ' class="checked"' : '')+' title="'+this.encodehtml(query.index)+'">'+
              '<b></b><span>'+this.encodehtml(query.label)+'</span>'+
@@ -2539,7 +2421,6 @@ var TweetfilterPrototype = function() {
 
   //set style element contents
   Tweetfilter.prototype.setcss = function(id, styles) {
-                                                                                                    _D('F:setcss', id);
     id = 'tf-'+id;
     if ($.browser.msie) { //apparently jquery does not handle this correctly on IE
       for (var i = 0; i < document.styleSheets.length; i++) {
@@ -2655,16 +2536,16 @@ var TweetfilterPrototype = function() {
           hidden = hidden.concat(cs.filter.media);
         }
       } else {
-        if ($.inArray('retweets', this.exclusive) > -1 && cs.filter.retweets.length) {
+        if (~this.exclusive.indexOf('retweets') && cs.filter.retweets.length) {
           hidden = hidden.concat(cs.filter.retweets);
         }
-        if ($.inArray('replies', this.exclusive) > -1 && cs.filter.replies.length) {
+        if (~this.exclusive.indexOf('replies') && cs.filter.replies.length) {
           hidden = hidden.concat(cs.filter.replies);
         }
-        if ($.inArray('links', this.exclusive) > -1 && cs.filter.links.length) {
+        if (~this.exclusive.indexOf('links') && cs.filter.links.length) {
           hidden = hidden.concat(cs.filter.links);
         }
-        if ($.inArray('media', this.exclusive) > -1 && cs.filter.media.length) {
+        if (~this.exclusive.indexOf('media') && cs.filter.media.length) {
           hidden = hidden.concat(cs.filter.media);
         }
       }
@@ -2673,14 +2554,14 @@ var TweetfilterPrototype = function() {
         if (query.user && !query.regular && cs.filter.users.hasOwnProperty(query.search) && (matchcount=cs.filter.users[query.search].length) && matchcount) { //user filter: count tweets by this user
           if (query.enabled && query.excluded && !exclusivemode) { //excluded do not count in exclusivemode
             excluded = excluded.concat(cs.filter.users[query.search]);
-          } else if (query.enabled && (!exclusivemode || $.inArray(query.id, this.exclusive) > -1)) {
+          } else if (query.enabled && (!exclusivemode || ~this.exclusive.indexOf(query.id))) {
             hidden = hidden.concat(cs.filter.users[query.search]);
           }
           query.count = matchcount;
         } else if (cs.filter.matches.hasOwnProperty(query.index) && (matchcount=cs.filter.matches[query.index].length) && matchcount) { //count tweets with match
           if (query.enabled && query.excluded && !exclusivemode) {
             excluded = excluded.concat(cs.filter.matches[query.index]);
-          } else if (query.enabled && (!exclusivemode || $.inArray(query.id, this.exclusive) > -1)) {
+          } else if (query.enabled && (!exclusivemode || ~this.exclusive.indexOf(query.id))) {
             hidden = hidden.concat(cs.filter.matches[query.index]);
           }
           query.count = matchcount;
@@ -2710,7 +2591,6 @@ var TweetfilterPrototype = function() {
   
   //build css from filter settings, filters and/or options and set it
   Tweetfilter.prototype.refreshcss = function(which) { 
-                                                                                                    _D('F:refreshcss', which);
     var style = [];
     var name;
     var cs = this.cs();
@@ -2723,14 +2603,12 @@ var TweetfilterPrototype = function() {
             style.push('.tweet-actions > a.tf.menu { display:none !important; }'); //hide the "add to filter" dropdown in stream while disabled
             this.setcss(name, style.join("\n"));
             $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
-                                                                                                    _D('F:refreshcss', 'W:suspending filter. stream itemtype: ', this.stream.itemtype, ', mode:', this.stream.mode, ', filter disabled:', this.options['filter-disabled']);
             break;
           }
           if (!cs.hasOwnProperty('filter')) {
             this.poll('parseitems');
             return true; 
           }
-                                                                                                    _D('F:refreshcss', 'W:refreshing filter css');
           this.refreshindex();
           var exclusivemode = this.exclusive.length > 0;
           var hidecss = 'display:none;';
@@ -2772,13 +2650,14 @@ var TweetfilterPrototype = function() {
           $('#tf-count-media').html(cs.filter.media.length);
           $('#tf-count-replies').html(cs.filter.replies.length);
           $('#tf-count-links').html(cs.filter.links.length);
-          cs.fetchUntilScreenIsFull();
+          if (this.options['tweets-fill-page']) {
+            cs.fetchUntilScreenIsFull();
+          }
           break;
         case 'friends':
           if (this.friendstatus.expires) { //is 0 at init, > 0 means it's loaded
             if (this.options['show-friends']) { //show friend status icon
               var following=[], follower=[], mutual=[], css = [], userid;
-                                                                                                      _D('F:refreshcss', 'W:refreshing friends css');
               for (userid in this.friendstatus) {
                 switch(this.friendstatus[userid]) {
                   case 1:following.push(userid);break;
@@ -2796,7 +2675,6 @@ var TweetfilterPrototype = function() {
           
         
         case 'layout':
-                                                                                                    _D('F:refreshcss', 'W:refreshing layout css');
          style = [
           'html { overflow-y:scroll; min-height:100%; }', //force scrollbar, remove horizontal jumps (opera)
           '#tf { display:block !important; bottom: 0; margin-left: 586px; position: fixed; text-align:left; '+this.css3rounded('0 4px 0 0')+' font-family:Arial,"Helvetica Neue",Helvetica,sans-serif; background:#fff; position:fixed; bottom:0; z-index:1; width: 385px; '+this.css3shadow('2px', 'rgba(0, 0, 0, 0.3)')+' border:1px solid #bbb; border-bottom:0; }',
@@ -3168,16 +3046,6 @@ var TweetfilterPrototype = function() {
     return str;
   };
   
-  Tweetfilter.prototype.inarray = function (needle, haystack) {
-    var len = haystack.length, index = 0;
-    for (index = 0; index < len; index++) {
-      if (haystack[index] === needle) {
-        return index;
-      }
-    }
-    return -1;
-  };
-  
   
   Tweetfilter.prototype.arraydiff = function(a, b) {
    var  diff = [];
@@ -3192,71 +3060,7 @@ var TweetfilterPrototype = function() {
     return diff;
   }
   
-  //<debug> function. only called from outside the object scope or by single recursion
-  Tweetfilter.prototype._debug = function() {
-    var args = Array.prototype.slice.call(arguments); //convert to array
-    var that = window.twtfilter; //"this" is window.console
-    var debuggroup = false, level = 'L', funcname; //default to ungrouped console.log
-    if (typeof args[0] === 'string' && args[0][1] === ':') {
-      level = args[0][0];
-      if (level === 'F') {
-        funcname = args.shift().substr(2);
-        debuggroup = 'Function '+funcname;
-        if (debuggroup !== that._debuggroup) {
-          if (debuggroup) {
-            if (that._debugfuncs && (that._debugfunctions.length === 0 || that.inarray(funcname, that._debugfunctions) > -1)) {
-              this.log('%c'+debuggroup, 'color:#1F6EBF; border-top:1px dashed #1F6EBF; margin-top:10px; padding-top:5px; font-weight:bold;');
-            }
-          }
-          that._debuggroup = debuggroup;
-        }
-        that._debug.apply(this, args);
-        return;
-      } else {
-        args[0] = args[0].substr(2);
-      }
-    }
-    funcname = that._debuggroup.substr(9);
-    if (that._debuglevels.indexOf(level) > -1 && 
-         (that._debugfunctions.length === 0 || that.inarray(funcname, that._debugfunctions) > -1) &&
-         (that._debugskipfunctions.length === 0 || that.inarray(funcname, that._debugskipfunctions) === -1)) 
-    {
-      if (!that._debuggrouped && that._debuggroup) {
-        if (typeof args[0] === 'object') {
-          args.splice(0, 0, ''); //insert dummy element to avoid string conversion of object to debug
-        }
-        args[0]='%c'+args[0];
-        if (level === 'D' || level === 'L') {
-          args.splice(1,0,'padding-left:2em;');
-        } else {
-          args.splice(1,0,'background-position:2em 0; padding-left:3.5em;');
-        }
-      } 
-      this[({'D':'debug', 'E':'error', 'W':'warn', 'I':'info', 'L':'log'})[level]].apply(this, args);
-    }
-  };
-  
-  
-  var _D, _F;
-  _D = _F = function() {}; //shorthand debug function
-// </debug>
   window.twtfilter = new Tweetfilter; //create a neighbor of twttr
-// <debug>
-  if (!!window.twtfilter.debug && !!window.console) {
-    window.twtfilter._debuggroup = false;
-    window.twtfilter._debugfuncs = true;
-    _D = function() {
-      if (typeof console.log.apply === 'function') { //check for bug in firebug 1.8a for firefox 4
-        window.twtfilter._debug.apply(console, arguments);
-      } else { //simple and ugly logging arguments as an array
-        console.log(arguments);
-      }
-    };
-    _F = function(fctname) {
-      return 'F:'+fctname;
-    }
-  }
-// </debug>
 };
 
 if (window.top === window.self && //don't run in twitter's helper iframes
