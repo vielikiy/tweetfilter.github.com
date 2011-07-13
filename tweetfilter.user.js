@@ -33,7 +33,7 @@ var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-    this.version = '2.0 rc1'; //current visible script version
+    this.version = '2.0'; //current visible script version
 
     this.options = { /* default option settings */
       /* widget options */
@@ -211,7 +211,7 @@ var TweetfilterPrototype = function() {
          twttr[has]('router') && twttr[has]('$doc') && twttr[has]('$elements') && twttr[has]('app') && 
          twttr[has]('currentUser'))
       {
-        if (!this.checkrequirements) { //browser must have local storage and native json
+        if (!this.checkrequirements()) { //browser must have local storage and native json
           this.showmessage('Tweetfilter can\'t work correctly on this browser. <br />It would probably work fine on latest <a href="http://www.mozilla.com/firefox">Firefox</a>, '+
                            '<a href="http://www.google.com/chrome">Chrome</a> or <a href="http://www.opera.com">Opera</a>.', {resident:true});
           return false;
@@ -266,7 +266,7 @@ var TweetfilterPrototype = function() {
       }, 1000); //reinitialize
       return false;
     }
-    if (typeof twttr !== 'undefined') this.showmessage('Tweetfilter failed to initialize. You may try to refresh the page.');
+    if (typeof twttr !== 'undefined') this.showmessage('Tweetfilter failed to initialize. You may try to refresh the page.', {resident:true});
     return false;
   };
   
@@ -824,7 +824,7 @@ var TweetfilterPrototype = function() {
       case 'alert-sound-message':
         this.poll('checkreceived');
         if (this.status.initialized) {
-          this.showmessage((option.indexOf('mention') > -1 ? 'Mention' : 'Message')+' alert '+(status ? 'enabled' : 'disabled')+'.');
+          this.showmessage((option.indexOf('mention') > -1 ? 'Mention' : 'Message')+' alert '+(status ? 'enabled' : 'disabled')+'.', {type:option});
           if (status) {
             this.playsound();
           }
@@ -855,7 +855,7 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.setstreamtitle = function() {
     //set on widget
     $('#tf-stream-title').html(this.stream.title);
-    var sm, cs;
+    var sm;
     if ((sm = twttr.app.currentPage().streamManager)) {
       if ($('.subtabs', sm.$titleContainer).length) {
         return true;
@@ -1177,16 +1177,15 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.findexactmatch = function(haystack, needle) { //find exact match without using regex
-    var pos = haystack.indexOf(needle), ismatch=false, hlen=haystack.length, nlen=needle.length;
+    var pos = haystack.indexOf(needle), hlen=haystack.length, nlen=needle.length;
     while (pos > -1) {
-      ismatch = (pos === 0 || this.stopchars.indexOf(haystack.charAt(pos-1)) > -1) && //if it's at the beginning or preceded by a stopchar
-                (pos+hlen === hlen || this.stopchars.indexOf(haystack.charAt(pos+nlen)) > -1); //and at the end or followed by a stopchar
-      if (ismatch) {
-        break;
+      if ((pos === 0 || this.stopchars.indexOf(haystack.charAt(pos-1)) > -1) && //if it's at the beginning or preceded by a stopchar
+          (pos+nlen === hlen || this.stopchars.indexOf(haystack.charAt(pos+nlen)) > -1)) { //and at the end or followed by a stopchar
+        return true;
       }
       pos = haystack.indexOf(needle, pos+1);
     }
-    return ismatch;
+    return false;
   };
   
   //check tweet for any match or a specific search object 
@@ -1301,16 +1300,16 @@ var TweetfilterPrototype = function() {
         //normalize all inputs with different syntaxes
         switch(type) {
           case 'exact':
-            search.label = search.raw = '"'+search.label+'"';
+            search.label = search.raw = '&laquo;'+search.label+'&raquo;';
             search.index = search.raw.toLowerCase();
-            search.exact = true;
+            search.exact = search.simple = true;
           break;
           case 'simple':
             search.simple = true;
             search.raw = matches[0];
             search.index = search.raw.toLowerCase();
-            if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
-              search.label = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/im');
+            if (search.raw[0] !== "'" && (regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular text match <-- /(something|matching)/
+              search.label = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
               search.search = search.rx = regularmatch[2];
               search.sortby = (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : regularmatch[2]);
             } else {
@@ -1442,55 +1441,74 @@ var TweetfilterPrototype = function() {
     }
   };
   
-  Tweetfilter.prototype.showmessage = function(message, options) {
+  Tweetfilter.prototype.showmessage = function(text, options) {
     if (typeof options === 'undefined') {
-      options = {resident: false, timeout: 3000};
+      options = {resident: false, timeout: 4200};
     } else if (options === true) {
       options = {resident: true};
     } 
     if (!options.resident && !options.timeout) {
-      options.timeout = 3000;
+      options.timeout = 4200;
     }
-    message =  '<span'+(options.type ? ' class="'+options.type+'"' : '')+'>'+message+'</span>';
-    var md = $('#message-drawer');
-    var msg = md.html(), $message;
-    if (!msg.length) {
-      msg = '<div class="message message"><div class="message-inside">'+message;
-      if (options.resident) {
-        msg += '<a href="#" class="dismiss">×</a>';
+    var $md = $('#message-drawer'), $message;
+    var $msg = $('>div.message', $md);
+    if (!$msg.length) {
+      $msg = $('<div class="message message">'+
+                  '<div class="message-inside"></div>'+
+                '</div>');
+      $md.append($msg);
+    }
+    if (options.type) {
+      $message = $('span.'+options.type, $md);
+      if (!$message.length) {
+        $message = $('<span class="tf '+options.type+'">'+text+'</span>');
+      } 
+      var oldvalue, value;
+      for (var v in options.vars) {
+        value = options.vars[v];
+        if (v.indexOf('+')===0) {
+          v = v.substr(1);
+          oldvalue = $message.attr('data-'+v);
+          if (oldvalue) {
+            value += +oldvalue;
+          }
+        }
+        $message.attr('data-'+v, value);
+        text = text.split('{{'+v+'}}').join(value);
       }
-      msg += '</div></div>';
-      $message = $(msg);
-      md.append($message);
-      if (!options.resident) {
-        setTimeout(function() {
-          $message.css("opacity", 1).animate({
-           opacity: 0
-          }, 1000, function () {
-           $message.remove();
-          });
-        }, options.timeout);
+      $message.html(text);
+    } else {
+      $message = $('<span class="tf">'+text+'</span>');
+    }
+    $('div.message-inside', $md).append($message);
+    var hidemessage = function() {
+      var target = $('span.tf:not(:animated)', $md).length > 1 ? $message : $msg;
+      target.css("opacity", 1).animate({
+       opacity: 0
+      }, 500, function () {
+       target.remove();
+      });
+    };
+    if (options.resident) { //resident: add close button
+      if (!$('a.x', $message).length) {
+        var closebutton = $('<a href="#" class="x">×</a>');
+        closebutton.bind('click', hidemessage);
+        $message.append(closebutton);
       }
-    } else { //there was already a message open
-      $message = $(msg);
-      if (options.type) {
-        var container = $('span.'+options.type, $message)
-        if (container.length) {
-          var oldcount = 0; 
-          if (options.count) {
-            if ((oldcount = container.html().match(/[0-9]+/))) {
-              oldcount = +oldcount[1]+options.count;
-              message.replace(/[0-9]+/, oldcount);
-            }
-          } 
-          $('span.'+options.type, $message).replaceWith(message);
-        } else {
-          $('span:last', $message).after(message);
-        }       
+    } else { //not resident: hide after timeout
+      if (this.timeids.hidemessage) {
+        if (this.timeids.hidemessage[options.type] !== -1) {
+          clearTimeout([this.timeids.hidemessage[options.type], this.timeids.hidemessage[options.type]=-1][0]);
+        }
       } else {
-        $('span:last', $message).after(message);
+        this.timeids.hidemessage = {};
+        this.timeids.hidemessage[options.type] = -1; 
       }
-    }
+      var timeoutid = setTimeout(hidemessage, options.timeout);
+      if (options.type) {
+        this.timeids['hidemessage'][options.type] = timeoutid;
+      }
+    } 
   };
 
   Tweetfilter.prototype.checkreceived = function() {
@@ -1507,7 +1525,7 @@ var TweetfilterPrototype = function() {
               }
               that.status.messagesinceid = result.response[0].id;
               var howmany = result.response.length;
-              if (that.options['alert-message']) that.showmessage('You have '+howmany+' new <a href="#!/mentions">message'+(howmany > 1 ? 's' : '')+'</a>!', {resident: true, type: 'newmessages', count: howmany});
+              if (that.options['alert-message']) that.showmessage('You have {{count}} new <a href="#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': howmany}});
               if (that.options['alert-sound-message']) that.playsound();
               that.savesettings();
             } else if (that.status.messagesinceid === -1) { //user has 0 messages received
@@ -1527,7 +1545,7 @@ var TweetfilterPrototype = function() {
               }
               that.status.mentionsinceid = result.response[0].id;
               var howmany = result.response.length;
-              if (that.options['alert-mention']) that.showmessage('You have '+howmany+' new <a href="#!/mentions">mention'+(howmany > 1 ? 's' : '')+'</a>!', {resident: true, type: 'newmentions', count: howmany});
+              if (that.options['alert-mention']) that.showmessage('You have {{count}} new <a href="#!/mentions">mentions</a>!', {resident: true, type: 'newmentions', vars: {'+count': howmany}});
               if (that.options['alert-sound-mention']) that.playsound();
               that.savesettings();
             } else if (that.status.mentionsinceid === -1) { //user has 0 messages received
@@ -1644,7 +1662,7 @@ var TweetfilterPrototype = function() {
                 twttr.currentUser.relationshipWith(item.screenname, function(relation) {
                   if (relation.canDM) {
                     if (!relation.following) {
-                      twttr.showMessage('You do not follow @'+item.screenname+',<br /> the user will not be able to answer directly.');
+                      this.showmessage('You do not follow @'+item.screenname+',<br /> the user will not be able to answer directly.');
                     }
                     twttr.dialogs.dmSingle({
                       user: {
@@ -1657,9 +1675,9 @@ var TweetfilterPrototype = function() {
                     }).open();
                   } else {
                     if (!relation.followedBy) {
-                      twttr.showMessage('@'+item.screenname+' does not follow you.');
+                      this.showmessage('@'+item.screenname+' does not follow you.');
                     } else { //fallback
-                      twttr.showMessage('You can\'t send direct messages to @'+item.screenname);
+                      this.showmessage('You can\'t send direct messages to @'+item.screenname);
                     }
                   }
                 });
@@ -2832,6 +2850,9 @@ var TweetfilterPrototype = function() {
           '.stream-tab.stream-tab-title { z-index:1; }',
           '.stream-title h2 { position:relative }',
           '.stream-title .go-to-list-page { position:absolute; top: 1em; right:1em; }', //assure we see "view list page" link in exclusive filter mode
+          '.message-inside > span.tf { display:block !important; }',
+          '#message-drawer a.x { background: none repeat scroll 0 0 #F8F8F8; color: #999999; display: inline-block; font-family: Tahoma; font-size: 12px; font-weight: bold; height: 22px; margin: -5px -10px -10px 10px;  padding: 3px 3px 2px; }',         
+          '#message-drawer a.x:hover { color:#666; text-decoration:none; }',
           /* add to filter menu */
           '.tweet-actions { position:absolute; right:-5px; bottom:-5px; }',
           '.tweet-actions a span b { display:none; }',
