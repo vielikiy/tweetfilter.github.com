@@ -6,8 +6,13 @@
     <title>Tweetfilter - timeline filter for twitter.com</title>
     <link rel="stylesheet" type="text/css" media="all" href="http://fonts.googleapis.com/css?family=Droid+Serif|Droid+Sans&amp;v1" />    
     <link rel="stylesheet" type="text/css" media="all" href="webdata/index.css?v1" />
+    <style type="text/javascript">
+      body.loading { overflow: hidden; }
+      body.loading #all { visibility: hidden !important; }
+    </style>
   </head>
-  <body>
+  <body class="">
+    <script>document.getElementsByTagName('body')[0].setAttribute('class','loading');</script>
     <div id="all">
       <div id="contents">
         <div id="content">
@@ -104,7 +109,7 @@
               will add matching Tweets to "Filtered". On the top of the Tweetfilter widget you see the count
               of Tweets which passed all filters ("passed") and those which match at least one filter ("filtered").
               You can click "filtered" and "passed" to switch between the two.</p>
-            <p><img class="align-left" src="webdata/tf-screenshot-3.png" alt="Tweetfilter" /></p>
+            <p><img class="align-left" src="webdata/tf-screenshot-3.png" alt="Tweetfilter" width="448" height="83" /></p>
             <p>With the four quick filters on the right of the Tweetfilter logo you can instantly show (white background) 
               or hide (gray background) all replies, retweets, media and tweets containing links from the current timeline.</p>
             <p>You can type <strong>simple text filters</strong> (keywords/phrases) in the
@@ -285,9 +290,9 @@
           <div id="feedback">
             <h2>Bugs, your ideas and feature suggestions</h2>
             <p>Found a bug? Great, let's kill it. Have an idea on how to improve Tweetfilter? Even
-              better! You can post potential bugs, ideas and/or feature suggestions in the <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues" rel="nofollow">Github
-                Tweetfilter Issues Tracker</a>, thanks! If you are a developer and fixed a bug, please
-              file a <a href="https://github.com/Tweetfilter/tweetfilter.github.com/pulls" rel="nofollow">pull request</a>.</p>
+              better! You can post potential bugs, ideas and/or feature suggestions in the <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues" target="_blank">Github
+              Tweetfilter Issues Tracker</a>, thanks! If you are a developer and fixed a bug, please
+              file a <a href="https://github.com/Tweetfilter/tweetfilter.github.com/pulls" target="_blank">pull request</a>.</p>
             <p>Thanks for using Tweetfilter!</p>
           </div>
         </div>
@@ -299,12 +304,13 @@
               <ol>
                 <li>Add this bookmarklet to your favorites:
                   <div class="bookmarklet">
-                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20$('body').append('%3Cscript%20src=%22https://raw.github.com/Tweetfilter/tweetfilter.github.com/master/tweetfilter.user.js%22%20type=%22text/javascript%22%3E%3C/script%3E');%20})()">
+                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20$('body').append('<script%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js%22%20type=%22text/javascript%22></script>');%20})()">
                       <span>Tweetfilter</span>
                     </a>
                     <div class="version">
-                      Current Version: 2.0<br />
+                      Current Version: 2.0 rc1<br />
                       Updated: 2011-07-09<br />
+                      (via <a href="http://userscripts.org/scripts/show/49905" target="_blank">userscripts.org</a>)
                     </div>
                   </div>
                   <em>(drag it your favorites bar or add it to your bookmarks
@@ -318,7 +324,7 @@
                 and you will always get the latest version.
                 After you pressed the bookmarklet Tweetfilter will stay loaded on all pages
                 which have timelines and the top black bar, until you fully refresh the page (F5) or switch away to
-                another page without the black bar. </p>
+                another page without the black bar.</p>
             <div class="method dynamic">
               <h2>Permanent installation</h2>
               <div class="browsers permanent"></div>
@@ -329,7 +335,7 @@
               </ol>
             </div>
             <p class="note">Permanent installations will not update automatically. Please follow/list <a href="https://twitter.com/tweetfilterjs">@tweetfilterjs</a> 
-                for update notifications.</p>
+                for update notifications or check this site for updates.</p>
             <p class="note">Permanent installation with Opera through Javascript settings is not supported
                 anymore. Please use the bookmarklet instead, which also has
                 other advantages, or send your suggestions <a href="https://twitter.com/tweetfilterjs">@tweetfilterjs</a> if you know an alternative
@@ -349,17 +355,16 @@
                 <li class="missing"><em>All links are reviews of Tweetfilter 1.x, yet.</em></li>
               </ul>
             </div>
-            <div id="tweets">
-            </div>
+            <div id="tweets"></div>
           </div>
           <div id="awesome">
             <h2>Tweetfilter is awesome and free, thanks to you</h2>
             <p><strong>Tweetfilter is free open source software</strong> released under GPL v3
               license, <strong>inspired and supported by the Twitter community. Tweetfilter is not
                 associated in any way with Twitter Inc.</strong></p>
-           <p>Tweetfilter started in 2009 ("old" Twitter times) as a project on the well known
-            <a href="http://userscripts.org/scripts/show/49905" rel="nofollow">userscripts.org</a>.
-            Since 2011 Tweetfilter 2.0 is hosted and maintained on the fabulous <a href="https://github.com/Tweetfilter/tweetfilter.github.com">github.com</a>.</p>
+           <p>Tweetfilter started in 2009 ("old" Twitter times) as project on the well known
+            <a href="http://userscripts.org/scripts/show/49905" rel="nofollow">userscripts.org</a>, where it is still hosted.
+            Since 2011 Tweetfilter 2.0 is also maintained on the fabulous <a href="https://github.com/Tweetfilter/tweetfilter.github.com">github.com</a>.</p>
           </div>
           <div id="support">
             <h2>Support what you like</h2>
@@ -393,8 +398,6 @@
       </div><!--contents-->
     </div><!--all-->
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
-    <script src="webdata/jquery.jtweetsanywhere-1.2.1.min.js"></script>
-    <script src="http://platform.twitter.com/anywhere.js?id=pC4PH5pO55k8fnViq6PA&amp;v=1"></script>
     <script src="http://static.addtoany.com/menu/page.js"></script>   
     <script type="text/javascript">
       var a2a_config = a2a_config || {};
@@ -452,6 +455,7 @@
         if (window.location.hash) {
           window.location.hash = window.location.hash;
         }
+        $('body').removeClass('loading');
       });
       var cache=[];
       var preloadimages = function() {
@@ -462,26 +466,63 @@
           cache.push(cacheImage);
         }
       };
+      
+      function relatime(time) { 
+        var values = time.split(" ");
+        time = values[1] + " " + values[2] + ", " + values[5] + " " + values[3];
+        var parsed_date = Date.parse(time);
+        var relative_to = (arguments.length > 1) ? arguments[1] : new Date();
+        var delta = parseInt((relative_to.getTime() - parsed_date) / 1000);
+        delta = delta + (relative_to.getTimezoneOffset() * 60);
+
+        if (delta < 60) {
+          return 'less than a minute ago';
+        } else if(delta < 120) {
+          return 'about a minute ago';
+        } else if(delta < (60*60)) {
+          return (parseInt(delta / 60)).toString() + ' minutes ago';
+        } else if(delta < (120*60)) {
+          return 'about an hour ago';
+        } else if(delta < (24*60*60)) {
+          return 'about ' + (parseInt(delta / 3600)).toString() + ' hours ago';
+        } else if(delta < (48*60*60)) {
+          return '1 day ago';
+        } else {
+          return (parseInt(delta / 86400)).toString() + ' days ago';
+        }
+      }
+      
+      var showtweets = function(tweets) {
+        var tweet, feedhtml = ["<ul>"];
+        for (var t=0,tmax=tweets.results.length;t<tmax && (tweet=tweets.results[t]);t++) {
+          feedhtml.push('<li>'+
+                          '<div class="pic">'+
+                            '<a target="_blank" href="https://twitter.com/'+tweet.from_user+'"><img src="'+tweet.profile_image_url+'" alt="'+tweet.from_user+'" /></a>'+
+                          '</div>'+
+                          '<div class="msg">'+
+                            '<a class="from" href="https://twitter.com/'+tweet.from_user+'">'+tweet.from_user+'</a>: '+tweet.text+'<br /><span class="time">'+relatime(tweet.created_at)+'</span>'+
+                          '</div>'+
+                        '</li>');
+        }
+        feedhtml.push("</ul>");
+        $('#tweets').html(feedhtml.join("\n"));
+      }
+      
+      function showtweetfeed() {
+        var twitterJSON = document.createElement("script");
+        twitterJSON.type="text/javascript";
+        twitterJSON.src="http://search.twitter.com/search.json?callback=showtweets&q=Tweetfilter&lang=all&rpp=21";
+        $('body').append(twitterJSON);
+        return false;
+      }
+      
       $(function() {
         preloadimages('webdata/tf-bookmarklet-over.gif','webdata/tf-bookmarklet-grab.gif');
         $('a.bookmarklet').bind('mouseenter', function() { $(this).addClass('over'); })
                           .bind('mouseleave', function() { $(this).removeClass('over'); })
                           .bind('mousedown', function() { $(this).addClass('grab'); })
                           .bind('mouseup mouseleave', function() { $(this).removeClass('grab'); });
-        $('#tweets').jTweetsAnywhere({
-          searchParams: ['lang=all&q=tweetfilter+OR+scripts%2Fshow%2F49905'],
-          count: 20,
-          showTweetFeed: {
-            showProfileImages: true,
-            showUserScreenNames: true,
-            showUserFullNames: true, 
-            showSource: true, 
-            showTimestamp: {
-              refreshInterval: 15
-            }
-          }
-        });
-        
+        showtweetfeed();
         $('#links a').click(function() {
           window.open($(this).attr('href'));
           return false;
