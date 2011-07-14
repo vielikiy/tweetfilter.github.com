@@ -36,7 +36,7 @@ var TweetfilterPrototype = function() {
     this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
-    this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = ['refreshcss'];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
     this._debugskipfunctions = ['checktweet', 'parselinks']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
 // </debug>   
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
@@ -462,20 +462,27 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.refreshoptions = function() {
     var exclusivemode = this.exclusive.length > 0;
-    if (this.stream.itemtype === 'tweet' && !this.options['filter-disabled']) {
-      this.enableoption('filter-retweets', this.stream.namespace !== 'RetweetsByOthers' && this.stream.namespace !=='RetweetsByYou');
-      this.enableoption('filter-links', !this.stream.params.hasOwnProperty('mode') || this.stream.params.mode !== 'links');
-      this.enableoption(['filter-inverted'], !exclusivemode);
-      this.enableoption(['filter-replies', 'filter-media'], true);
-      this.enableoption(['skip-mentionsme'], this.stream.namespace!=='Mentions' && !exclusivemode);
-      this.enableoption(['show-friends'], this.stream.namespace!=='YourTweetsRetweeted' && !(this.stream.namespace === 'User' && 
-                                          this.stream.params.screenName.toLowerCase() === this.user.name));
-      this.enableoption(['skip-me'], !exclusivemode && this.stream.namespace!=='YourTweetsRetweeted' && 
-                                     !(this.stream.namespace === 'User' && this.stream.params.screenName.toLowerCase() === this.user.name));
-      this.enableoption(['add-selection','highlight-mentionsme'], true);
-    } else {
-      this.enableoption(['highlight-mentionsme'], this.stream.itemtype === 'tweet');
-      this.enableoption(['filter-inverted', 'filter-replies', 'filter-media', 'filter-retweets', 'skip-me', 'show-friends', 'skip-mentionsme', 'add-selection'], false);
+    switch(this.stream.itemtype) {
+      case 'tweet':
+        this.enableoption('filter-retweets', !this.options['filter-disabled'] && this.stream.namespace !== 'RetweetsByOthers' && this.stream.namespace !=='RetweetsByYou');
+        this.enableoption('filter-links', !this.options['filter-disabled'] &&  !this.stream.params.hasOwnProperty('mode') || this.stream.params.mode !== 'links');
+        this.enableoption(['filter-inverted'], !this.options['filter-disabled'] && !exclusivemode);
+        this.enableoption(['filter-replies', 'filter-media', 'filter-links'], !this.options['filter-disabled']);
+        this.enableoption(['skip-mentionsme'], !this.options['filter-disabled'] && this.stream.namespace!=='Mentions' && !exclusivemode);
+        this.enableoption(['show-friends'], this.stream.namespace!=='YourTweetsRetweeted' && !(this.stream.namespace === 'User' && 
+                                            this.stream.params.screenName.toLowerCase() === this.user.name));
+        this.enableoption(['skip-me'], !this.options['filter-disabled'] && !exclusivemode && this.stream.namespace!=='YourTweetsRetweeted' && 
+                                       !(this.stream.namespace === 'User' && this.stream.params.screenName.toLowerCase() === this.user.name));
+        this.enableoption(['add-selection'], !this.options['filter-disabled']);
+        this.enableoption(['highlight-mentionsme'], true);
+        break;
+      case 'user':
+        this.enableoption(['show-friends'], true);
+        break;
+      default:
+        this.enableoption(['filter-inverted', 'filter-replies', 'filter-media', 'filter-retweets', 'filter-links', 'skip-me', 'show-friends', 'skip-mentionsme', 'add-selection'], false);
+        break;
+        
     }
     return true;
   };
@@ -792,6 +799,7 @@ var TweetfilterPrototype = function() {
     switch(option) {
       /* options changing the stream */
       case 'filter-disabled': /* disable filter */
+        $('#tf-filter-add').attr('disabled', status);
         this.refreshoptions();
         this.poll('setstreamtitle');
         refresh = ['filter'];
@@ -895,12 +903,13 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.setstreamtitle = function() {
-    //set on widget
+                                                                                                    var f=_F('setstreamtitle');
+    //set on widget                                                                                 
     $('#tf-stream-title').html(this.stream.title);
-                                                                                                    _D('F:setstreamtitle', 'I:'+this.stream.title);
-    var sm;
+                                                                                                    _D(f, 'I:'+this.stream.title);
+    var sm, streamtitle = this.stream.title;
     if ((sm = twttr.app.currentPage().streamManager)) {
-                                                                                                    _D('F:setstreamtitle', 'I:', this.stream.namespace+' ('+this.stream.activetab+')');
+                                                                                                    _D(f, 'I:', this.stream);
       if ($('.subtabs', sm.$titleContainer).length) {
         return true;
       }
@@ -910,12 +919,21 @@ var TweetfilterPrototype = function() {
         textcontainer = $('<h2></h2>');
         sm.$titleContainer.prepend(textcontainer);
       } 
+      _D(f, 'textcontainer:', textcontainer, 'text:', textcontainer.text());
       if (textcontainer.is(':empty')) {
+      _D(f, 'I:textcontainer is empty!');
+
+        
         textcontainer.html(this.stream.title);
       } else if ($('span.stream-tab-title-inner', textcontainer).length) {
         textcontainer = $('span.stream-tab-title-inner', textcontainer);
       } else if ($('>span', textcontainer).length) {
         textcontainer = $('>span', textcontainer);
+      }
+      _D(f, 'textcontainer:', textcontainer, 'text:', textcontainer.text());
+      streamtitle = textcontainer.text(); 
+      if (streamtitle.length > 42+7) {
+        streamtitle = streamtitle.substr(0, 42+7)+'...';
       }
       var exclusivemode = this.exclusive.length > 0;
 
@@ -949,7 +967,7 @@ var TweetfilterPrototype = function() {
         }
       } else { //filter disabled: simple stream title
         $('> em, > div.tf', textcontainer).remove();
-        sm.$titleContainer.html('<h2>'+this.stream.title+'</h2>');
+        textcontainer.html(streamtitle);
       }
       return !!this.stream.title;
     }
@@ -1228,7 +1246,7 @@ var TweetfilterPrototype = function() {
       if (reparseitems) { //some items were not parsed, trigger a reparse
         this.poll('parseitems');
       }
-      this.refreshfiltercss();
+      this.poll('refreshcss', ['filter', 'friends']);
       this.poll('parselinks');      
     }
     return true;
@@ -1570,7 +1588,7 @@ var TweetfilterPrototype = function() {
     };
     if (options.resident) { //resident: add close button
       if (!$('a.x', $message).length) {
-        var closebutton = $('<a href="#" class="x">×</a>');
+        var closebutton = $('<a href="#" class="x">\u00d7</a>');
         closebutton.bind('click', hidemessage);
         $message.append(closebutton);
       }
@@ -1736,7 +1754,7 @@ var TweetfilterPrototype = function() {
         //e.stopImmediatePropagation();
         break;
       case 'click':
-        var streamitem = $(e.target).closest('div.stream-item');
+        var streamitem = $(e.target).closest('div.stream-item'), that=this;
         var itemid = streamitem.attr('data-item-id');
         if (itemid) {
           var cs = this.cs();
@@ -1755,7 +1773,7 @@ var TweetfilterPrototype = function() {
                 twttr.currentUser.relationshipWith(item.screenname, function(relation) {
                   if (relation.canDM) {
                     if (!relation.following) {
-                      this.showmessage('You do not follow @'+item.screenname+',<br /> the user will not be able to answer directly.');
+                      that.showmessage('You do not follow @'+item.screenname+',<br /> the user will not be able to answer directly.');
                     }
                     twttr.dialogs.dmSingle({
                       user: {
@@ -1768,9 +1786,9 @@ var TweetfilterPrototype = function() {
                     }).open();
                   } else {
                     if (!relation.followedBy) {
-                      this.showmessage('@'+item.screenname+' does not follow you.');
+                      that.showmessage('@'+item.screenname+' does not follow you.');
                     } else { //fallback
-                      this.showmessage('You can\'t send direct messages to @'+item.screenname);
+                      that.showmessage('You can\'t send direct messages to @'+item.screenname);
                     }
                   }
                 });
@@ -1953,7 +1971,7 @@ var TweetfilterPrototype = function() {
             //</debug> during tests, saving 250.000 friends exceeded localstorage memory size. 100.000 went just fine. setting limit for cached friends to 42.000
                         
           
-          this.friendstatus = { expires: parseInt(new Date().getTime() / 1000)+600, cache:true }; //friend status expires
+          this.friendstatus = {expires: parseInt(new Date().getTime() / 1000)+600, cache:true}; //friend status expires
           for (var i=0,imax=this.cursors.friendids.items.length,friendid;i<imax && (friendid=this.cursors.friendids.items[i]);i++) {
             this.friendstatus[friendid] = 1; //following
           }
@@ -2305,7 +2323,7 @@ var TweetfilterPrototype = function() {
                   '<li class="version">Tweetfilter '+this.version+'</li>',
                   '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                   '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
-                  '<li class="support"><a href="#" target="_blank">Show ♥</a></li>',
+                  '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
                 '</ul>',
               '</div>',
               '<div class="support">',
@@ -2412,12 +2430,12 @@ var TweetfilterPrototype = function() {
       .delegate('a[data-queryid]', 'mousedown', function(e) {
         switch(e.which) {
           case 1:
-            if (!e.shiftKey) {
+            if (!e.ctrlKey) { 
               that.setquerystatus($(this).attr('data-queryid')*1, !$(this).hasClass('checked'));
               break;
             }
             //fall through
-          case 2: //mouse wheel click or shift+click on query sets exclusive filters overriding all other options
+          case 2: //mouse wheel click or ctrl+click on query sets exclusive filters overriding all other options
             $(e.target).closest('li').toggleClass('exclusive');
             that.setquerystatus($(this).attr('data-queryid')*1, -2);
             break;
@@ -2457,9 +2475,9 @@ var TweetfilterPrototype = function() {
         new twttr.widget.TweetDialog({
           modal: false,
           draggable: true,
-          defaultContent: "Tweetfilter ♥ http://tweetfilter.org",
+          defaultContent: "Tweetfilter \u2665 http://tweetfilter.org",
           template: {
-            title: _("Thank you! <3")
+            title: _("Thank you! :)")
           },
           origin: "Tweetfilter "+that.version
         }).open().focus();        
@@ -2562,7 +2580,7 @@ var TweetfilterPrototype = function() {
              '<b></b><span>'+this.encodehtml(query.label)+'</span>'+
              '<i id="tf-count-'+query.id+'">'+(query.count ? query.count : '--')+'</i>'+
            '</a>'+
-           '<a class="x" title="remove from filter">×</a>'+
+           '<a class="x" title="remove from filter">\u00d7</a>'+
          '</span>'+
         '</li>');
     }
@@ -2580,17 +2598,7 @@ var TweetfilterPrototype = function() {
   //set style element contents
   Tweetfilter.prototype.setcss = function(id, styles) {
                                                                                                     _D('F:setcss', id);
-    id = 'tf-'+id;
-    if ($.browser.msie) { //apparently jquery does not handle this correctly on IE
-      for (var i = 0; i < document.styleSheets.length; i++) {
-        if (document.styleSheets[i].id === id) {
-          document.styleSheets[i].cssText = styles;
-          return;
-        }
-      }
-    } else { //all others: directly set element contents
-      $('style#'+id).html(styles);
-    }
+    $('style#tf-'+id).html(styles);
   };
   
   Tweetfilter.prototype.css3gradient = function(startcolor, endcolor, vertical) {
@@ -2606,10 +2614,9 @@ var TweetfilterPrototype = function() {
         'background-image: -webkit-gradient(linear, left top, '+(vertical ? 'left bottom' : 'right top')+', from('+startcolor+'), to('+endcolor+'))', /* Saf4+, Chrome */
         'background-image: -webkit-linear-gradient('+start+', '+startcolor+', '+endcolor+')' /* Chrome 10+, Saf5.1+ */
       ]);      
-    } else if ($.browser.msie) { //don't really know why I'm supporting IE
+    } else if ($.browser.msie) { 
       css = css.concat([
-       'background-image: -ms-linear-gradient('+start+', '+startcolor+', '+endcolor+')', /* IE10 */
-       "filter: progid:DXImageTransform.Microsoft.gradient(GradientType='"+vertical+"',startColorstr='"+startcolor+"',endColorstr='"+endcolor+"')",  /* IE 8*/
+       'background-image: -ms-linear-gradient('+start+', '+startcolor+', '+endcolor+')' /* IE10 */
       ]);      
     } 
     css = css.concat([ //always include the w3c method
@@ -2818,16 +2825,34 @@ var TweetfilterPrototype = function() {
           break;
         case 'friends':
           if (this.friendstatus.expires) { //is 0 at init, > 0 means it's loaded
-            if (this.options['show-friends']) { //show friend status icon
-              var following=[], follower=[], mutual=[], css = [], userid;
-                                                                                                    _D('F:refreshcss', 'W:refreshing friends css');
-              for (userid in this.friendstatus) {
-                switch(this.friendstatus[userid]) {
-                  case 1:following.push(userid);break;
-                  case 2:follower.push(userid);break;
-                  case 4:mutual.push(userid);break;
-                }
+            if (this.getoption('show-friends')) { //show friend status icon
+              var following=[], follower=[], mutual=[], css = [], userid, username;
+                                                                                                    _D('F:refreshcss', 'W:refreshing friends css', this.stream);
+              switch(this.stream.itemtype) {
+                case 'tweet':
+                  for (username in cs.filter.userids) {
+                                                                                                   _D('F:refreshcss', 'I:refreshing tweet stream', cs.filter.userids);
+                    userid = cs.filter.userids[username];
+                    switch(this.friendstatus[userid]) {
+                      case 1:following.push(userid);break;
+                      case 2:follower.push(userid);break;
+                      case 4:mutual.push(userid);break;
+                    }
+                  }
+                  break;
+                case 'user':
+                                                                                                   _D('F:refreshcss', 'I:refreshing user stream', cs.filter.users);
+                  for (username in cs.filter.users) {
+                    userid = cs.filter.users[username].userid;
+                    switch(this.friendstatus[userid]) {
+                      case 1:following.push(userid);break;
+                      case 2:follower.push(userid);break;
+                      case 4:mutual.push(userid);break;
+                    }
+                  }
+                  break;
               }
+                                                                                                    _D('F:refreshcss', 'setting friends css', 'following:', following, 'follower:', follower, 'mutual:', mutual);
               if (following.length) css.push('i.u'+following.join(',i.u') + ' { padding-right:14px; background-position: right 3px !important; }');
               if (follower.length) css.push('i.u'+follower.join(',i.u') + ' { padding-right:14px; background-position: right -16px !important; }');
               if (mutual.length) css.push('i.u'+mutual.join(',i.u') + ' { padding-right:14px; background-position: right -35px !important; }');
@@ -2996,6 +3021,8 @@ var TweetfilterPrototype = function() {
           '.stream-tab.stream-tab-title { z-index:1; }',
           '.stream-title h2 { position:relative }',
           '.stream-title .go-to-list-page { position:absolute; top: 1em; right:1em; }', //assure we see "view list page" link in exclusive filter mode
+          '.stream-title .stream-tabs { min-height:50px; }', //in foreign languages with long captions "top" and "with links" are hidden because of this Twitter css bug           
+          /* message drawer */
           '.message-inside > span.tf { display:block !important; }',
           '#message-drawer a.x { background: none repeat scroll 0 0 #F8F8F8; color: #999999; display: inline-block; font-family: Tahoma; font-size: 12px; font-weight: bold; height: 22px; margin: -5px -10px -10px 10px;  padding: 3px 3px 2px; }',         
           '#message-drawer a.x:hover { color:#666; text-decoration:none; }',
@@ -3023,7 +3050,6 @@ var TweetfilterPrototype = function() {
           '.main-content ul.tf-menu.drop-down li a { max-width:180px; overflow:ellipsis; }',
            /* via link */ 
           '.stream-item .tf-via { display:none; }',
-          'body.expand-last div.latest-tweet .tweet-row { height: 4em; }',
           'body.tf-filter-inverted li.stream-tab.active a.tab-text { color:#999 !important; text-decoration:line-through; }',
           'body.tf-show-via .stream-item .tf-via { display:inline; font-size:11px; color:@lighttext !important; }',
           'body.tf-show-via .stream-item .tf-via a { color:@lighttext !important; }',
@@ -3062,9 +3088,10 @@ var TweetfilterPrototype = function() {
           'body.tf-minify-menu div.footer.inline-list li:nth-child(5),',
           'body.tf-minify-menu div.footer.inline-list li:nth-child(9),',
           'body.tf-minify-menu div.footer.inline-list li:nth-child(15) { display:inline }',
+          'body.tf-expand-last div.latest-tweet .tweet-row { height:auto; white-space:wrap !important; }',
           'body.tf-expand-last div.latest-tweet.ellipsify-container > span.content { height:auto; white-space:wrap; }',
           'body.tf-expand-last div.latest-tweet .ellip { display:none; }',
-          'body.tf-expand-last div.latest-tweet .tweet-row { height:auto; white-space:wrap; }',
+          'body.tf-expand-last div.latest-tweet .tweet-row { height:auto; white-space:wrap !important; }',
           'body.tf-expand-last .ellipsify-container > span.content { overflow:visible; white-space:normal; display:block; }',
           'body.tf-hide-question div.tweet-box-title { display:none; }',
           'body.tf-hide-tweetbox div.main-tweet-box { display:none; }',
