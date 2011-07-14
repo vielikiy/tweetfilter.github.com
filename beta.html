@@ -23,9 +23,11 @@
           </div>
           <div id="description">
             <p><span>Tweetfilter is a highly customizable timeline filter running on top of twitter.com
-              supporting most modern desktop browsers.</span> This includes the latest versions of <a href="http://getfirefox.com" target="_blank">Firefox</a>, 
-              <a href="http://www.google.com/chrome" target="_blank">Chrome</a>, <a href="http://www.opera.com/" target="_blank">Opera</a>, 
-              <a href="http://www.apple.com/safari/" target="_blank">Safari</a> and <a href="http://ie.microsoft.com" target="_blank">IE</a>.</p>
+              supporting most modern desktop browsers.</span> This includes <a href="http://getfirefox.com" target="_blank">Firefox <i>3.6+</i></a>, 
+              <a href="http://www.google.com/chrome" target="_blank">Chrome <i>4+</i></a>, <a href="http://www.opera.com/" target="_blank">Opera <i>11+</i></a>, 
+              <a href="http://www.apple.com/safari/" target="_blank">Safari <i>5+</i></a> and <a href="http://ie.microsoft.com" target="_blank">IE <i>9+</i></a>.
+              For best experience please always use the latest stable release of your favorite browser.
+            </p>
           </div>
           <div id="screenshot">
             <img src="webdata/tf-screenshot.png" alt="Tweetfilter 2.0 / @tweetfilterjs" width="681" height="296" />
@@ -115,10 +117,21 @@
             <p>You can type <strong>simple text filters</strong> (keywords/phrases) in the
               "<strong>Add to Tweetfilter</strong>"-input on the widget, pressing enter will create a
               new filter entry in the "Filters" list showing you the count of matches and all Tweets
-              containing this keyword/phrase are immediately moved to the "filtered"-group. This way
-              you can also filter #hashtags, @mentions and links.</p>
+              containing this keyword/phrase (also as part of another word or contained in the text of links) 
+              are immediately moved to the "filtered"-group. This way you can also filter #hashtags, @mentions and links.</p>
             <h3 id="special-filters">Special filters</h3>
             <ul>
+              <li>to force any filter to <strong>full word match</strong> (exact match), wrap the
+                keyword/phrase part in double quotes: the filter <code>"hat"</code>  will not
+                match a Tweet which just contains <strong>what</strong>, <strong>hattrick</strong> or <strong>hate</strong> (like the simple text filter
+                <code>hat</code> without quotes would).</li>
+              <li>to filter Tweets containing an <strong>exact phrase or word</strong> add
+                <code>"word"</code> to the filter (with the double quotes). This will match "i say
+                word" but not "i say keyword", it matches only entire words or phrases.</li>
+              <li>to filter Tweets by <strong>Tweet's source (via)</strong> add
+                <code>via:partofclient</code> to the filter (will appear italic). For example
+                <code>via:web</code> will filter all Tweets from sources (via) <strong>containing</strong> "web".
+              </li>
               <li>To hide/search all Tweets coming from a certain user, either select it directly from
               the <strong>"add to filter"-dropdown</strong> menu at the bottom of the tweet, or add
               <code>from:@username</code> (with or without @) to the filter. Filters which match usernames
@@ -129,17 +142,6 @@
               <li>to filter all Tweets by posting user's <strong>real name</strong> add
                 <code>by:partofname</code> to the filter (where "partofname" is the keyword/phrase
                 you want to search within the user's real name)</li>
-              <li>to force any filter to <strong>full word match</strong> (exact match), wrap the
-                keyword/phrase part in double quotes: the filter <code>"hi"</code>  will not
-                match a Tweet which just contains <strong>hit</strong> (like the simple text filter
-                <code>hi</code> would).</li>
-              <li>to filter Tweets by <strong>Tweet's source (via)</strong> add
-                <code>via:partofclient</code> to the filter (will appear italic). For example
-                <code>via:iphone</code> will filter all Tweets from clients
-                <strong>containing</strong> "iphone".</li>
-              <li>to filter Tweets containing an <strong>exact phrase or word</strong> add
-                <code>"word"</code> to the filter (with the double quotes). This will match "i say
-                word" but not "i say keyword", it matches only entire words or phrases.</li>
             </ul>
             <h3 id="exclusion">Exclusions</h3>
             <p>If you want to <strong>exclude</strong> anything from the filter process,
