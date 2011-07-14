@@ -88,6 +88,7 @@ a.bookmarklet.grab { background-image:url('tf-bookmarklet-grab.gif'); }
 #share a.plusone span i { font-style:normal; color:#E32C3B;  }
 
 #description a { background:#fff; color:#1C6BBD;  }
+#description a i { font-style:normal; color:#999; }
 #description a:hover { background:#eee; }
 #description p span { font-size:110%; display:block; margin-bottom:0.2em;}
 div.browsers { background:url('browsers.png') no-repeat center left; height:42px; }
