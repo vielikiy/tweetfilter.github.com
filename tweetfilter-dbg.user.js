@@ -36,7 +36,7 @@ var TweetfilterPrototype = function() {
     this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
-    this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = ['loadsettings', 'savesettings'];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
     this._debugskipfunctions = ['checktweet', 'parselinks']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
 // </debug>   
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
@@ -807,7 +807,7 @@ var TweetfilterPrototype = function() {
     switch(option) {
       /* options changing the stream */
       case 'filter-disabled': /* disable filter */
-        $('#tf-filter-add').attr('disabled', status);
+        $('#tf-filter-add').trigger('blur').attr('disabled', status);
         this.refreshoptions();
         this.poll('setstreamtitle');
         refresh = ['filter'];
@@ -2293,7 +2293,7 @@ var TweetfilterPrototype = function() {
               '</ul>',
               '<div class="about">',
                 '<ul>',
-                  '<li class="version">Tweetfilter '+this.version+' <span>2011-07-17 20:33</span></li>',
+                  '<li class="version">Tweetfilter '+this.version+' <span>2011-07-18 00:55</span></li>',
                   '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                   '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                   '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -2983,7 +2983,7 @@ var TweetfilterPrototype = function() {
           '#tf div.about { padding: 10px 0 0 0; overflow:hidden; border-top:1px solid #eee; margin-top: 10px; }',
           '#tf div.about ul li { float:right; margin-left: 8px; font-size: 11px; }',
           '#tf div.about ul li.version { float:left; margin-left:0; }',
-          '#tf div.about ul li.version span { color: #aaa; font-size:9px; margin-left:10px; }',
+          '#tf div.about ul li.version span { color: #aaa; font-size:9px; margin-left:5px; }',
           '#tf div.about ul li a { color:@link; text-decoration:none; }',
           '#tf div.about ul li a.tweet { display:inline-block; height:15px; width:42px; overflow:hidden; text-indent:-100px; }',
           '#tf div.about ul li a:hover { text-decoration:underline; }',
