@@ -36,7 +36,7 @@ var TweetfilterPrototype = function() {
     this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
-    this._debugfunctions = ['findcomponents', '_poll'];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
     this._debugskipfunctions = ['checktweet', 'parselinks']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
 // </debug>   
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
@@ -2293,7 +2293,7 @@ var TweetfilterPrototype = function() {
               '</ul>',
               '<div class="about">',
                 '<ul>',
-                  '<li class="version">Tweetfilter '+this.version+'</li>',
+                  '<li class="version">Tweetfilter '+this.version+' <span>2011-07-17 20:33</span></li>',
                   '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                   '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                   '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -2925,7 +2925,7 @@ var TweetfilterPrototype = function() {
           '#tf p.tf-version { position:absolute; top:9px; right:20px; font-size:10px; padding:0; }',
           '#tf p.tf-version a {  color:#999;  }',
           '#tf p.tf-version a:hover { color:@link; text-decoration:none;  }',        
-          
+
           '#tf ul.tf-tabs { list-style:none; overflow:visible; background:#f5f5f5; border-top:1px solid #eee; height:20px; padding:5px 5px 0; margin:5px 10px; border-bottom:1px solid #eee; }',
           '#tf ul.tf-tabs li.tf-tab { float:left; cursor:pointer; border:1px solid transparent; border-bottom-color:#eee; text-align:center; height:19px; font-size:12px; line-height:19px; }',
           '#tf ul.tf-tabs li.tf-tab a { text-decoration:none; color:@link; padding:0 8px; text-shadow:0 1px 0 #fff; }',
@@ -2983,6 +2983,7 @@ var TweetfilterPrototype = function() {
           '#tf div.about { padding: 10px 0 0 0; overflow:hidden; border-top:1px solid #eee; margin-top: 10px; }',
           '#tf div.about ul li { float:right; margin-left: 8px; font-size: 11px; }',
           '#tf div.about ul li.version { float:left; margin-left:0; }',
+          '#tf div.about ul li.version span { color: #aaa; font-size:9px; margin-left:10px; }',
           '#tf div.about ul li a { color:@link; text-decoration:none; }',
           '#tf div.about ul li a.tweet { display:inline-block; height:15px; width:42px; overflow:hidden; text-indent:-100px; }',
           '#tf div.about ul li a:hover { text-decoration:underline; }',
