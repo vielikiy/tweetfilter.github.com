@@ -502,7 +502,7 @@
       
       var showtweets = function(tweets) {
         var tweet, feedhtml = ["<ul>"];
-        for (var t=0,tmax=tweets.results.length;t<tmax && (tweetcount<maxtweetcount) && (tweet=tweets.results[t]);t++) {
+        for (var t=0,tmax=tweets.results.length;t<tmax && (tweet=tweets.results[t]);t++) {
             feedhtml.push('<li>'+
                             '<div class="pic">'+
                               '<a target="_blank" href="https://twitter.com/#!/'+tweet.from_user+'" title="'+tweet.from_user+'">'+
@@ -521,7 +521,7 @@
       function showtweetfeed() {
         var twitterJSON = document.createElement("script");
         twitterJSON.type="text/javascript";
-        twitterJSON.src="http://search.twitter.com/search.json?callback=showtweets&q=tweetfilter+source%3Aweb&lang=all&rpp=20";
+        twitterJSON.src="http://search.twitter.com/search.json?callback=showtweets&q=tweetfilter+source:web&lang=all&rpp=20";
         $('body').append(twitterJSON);
         return false;
       }
