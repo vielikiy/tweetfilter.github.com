@@ -502,17 +502,22 @@
       
       var showtweets = function(tweets) {
         var tweet, feedhtml = ["<ul>"];
-        for (var t=0,tmax=tweets.results.length;t<tmax && (tweet=tweets.results[t]);t++) {
-          feedhtml.push('<li>'+
-                          '<div class="pic">'+
-                            '<a target="_blank" href="https://twitter.com/#!/'+tweet.from_user+'" title="'+tweet.from_user+'">'+
-                            '<img src="webdata/tf-logo.gif" width="48" height="48" data-src="'+tweet.profile_image_url+'" /></a>'+
-                          '</div>'+
-                          '<div class="msg">'+
-                            '<a class="from" href="https://twitter.com/'+tweet.from_user+'">'+tweet.from_user+'</a>: '+tweet.text+'<br />'+
-                            '<span class="time">'+relatime(tweet.created_at)+'</span>'+
-                          '</div>'+
-                        '</li>');
+        for (var t=0,tmax=tweets.results.length,tweetcount=0,maxtweetcount=20;t<tmax && (tweetcount<maxtweetcount) && (tweet=tweets.results[t]);t++) {
+          console.log(tweet);
+          if (tweet.source.indexOf('twitter.com') !== -1) {
+            tweetcount++;
+            feedhtml.push('<li>'+
+                            '<div class="pic">'+
+                              '<a target="_blank" href="https://twitter.com/#!/'+tweet.from_user+'" title="'+tweet.from_user+'">'+
+                              '<img src="webdata/tf-logo.gif" width="48" height="48" data-src="'+tweet.profile_image_url+'" /></a>'+
+                            '</div>'+
+                            '<div class="msg">'+
+                              '<a class="from" href="https://twitter.com/'+tweet.from_user+'">'+tweet.from_user+'</a>: '+tweet.text+'<br />'+
+                              '<span class="time">'+relatime(tweet.created_at)+'</span>'+
+                            '</div>'+
+                          '</li>');
+            
+          }
         }
         feedhtml.push("</ul>");
         $('#tweets').html(feedhtml.join("\n"));
@@ -521,7 +526,7 @@
       function showtweetfeed() {
         var twitterJSON = document.createElement("script");
         twitterJSON.type="text/javascript";
-        twitterJSON.src="http://search.twitter.com/search.json?callback=showtweets&q=Tweetfilter&lang=all&rpp=19";
+        twitterJSON.src="http://search.twitter.com/search.json?callback=showtweets&q=Tweetfilter&lang=all&rpp=30";
         $('body').append(twitterJSON);
         return false;
       }
