@@ -36,8 +36,8 @@ var TweetfilterPrototype = function() {
     this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
-    this._debugfunctions = ['loadsettings', 'savesettings'];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
-    this._debugskipfunctions = ['checktweet', 'parselinks']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
+    this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
+    this._debugskipfunctions = []; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
 // </debug>   
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     this.version = '2.0'; //current visible script version
