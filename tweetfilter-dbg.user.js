@@ -37,7 +37,7 @@ var TweetfilterPrototype = function() {
                         //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
     this._debugfunctions = [];// ['refreshfriendstatus', 'refreshcss', 'refreshfriends','refreshcursor','cursorfetched','cursorfetched']; //which functions to debug (whitelist). empty array = debug all functions
-    this._debugskipfunctions = []; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
+    this._debugskipfunctions = ['checktweet', 'parselinks']; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
 // </debug>   
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     this.version = '2.0'; //current visible script version
@@ -193,7 +193,7 @@ var TweetfilterPrototype = function() {
       title: '',
       user: ''
     };
-    this.stopchars = ' (){}[].,;-_#\'+*~´`?\\/&%$§"!^°'; //possible chars delimiting a phrase, for exact search. spares expensive regex match
+    this.stopchars = ' (){}[].,;-_#\'+*~Â´`?\\/&%$Â§"!^Â°'; //possible chars delimiting a phrase, for exact search. spares expensive regex match
     this.initretries = 10; //how many times try to initialize before giving up
     this.initialize();
     
@@ -283,7 +283,7 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.waitforstream = function() {
     var isloaded = true;
     try { 
-      this.cp = twttr.app.currentPage();
+      this.cp = twttr.app.currentPage()._instance;
       if (this.cp && !this.cp.streamManager) {
         this.stream.filterstream = false;
         return false;
@@ -302,6 +302,7 @@ var TweetfilterPrototype = function() {
       isloaded = (isprotected || cs.$node.find('.stream-end').length || cs.items.length); //&& !cs._getMoreOldItemsLock && cs._loadedStreamOnce;
     } catch(e) {
       isloaded = false;
+      _D('F:waitforstream', 'E:', e);
     }
     if (!isloaded) {
       if (this.stream.status !== 'loading') {
@@ -715,7 +716,7 @@ var TweetfilterPrototype = function() {
 
   //attempts to find dasboard components if one is missing.
   Tweetfilter.prototype.findcomponents = function() {
-    var dashboard = twttr.app.currentPage().$node.find(".dashboard");
+    var dashboard = twttr.app.currentPage()._instance.$node.find(".dashboard");
     var components = $("> div.component", dashboard);
     var enableoptions = [], disableoptions = [];
     this.status.foundcomponents = [];
@@ -920,7 +921,7 @@ var TweetfilterPrototype = function() {
     $('#tf-stream-title').html(this.stream.title);
                                                                                                     _D(f, 'I:'+this.stream.title);
     var sm, streamtitle = this.stream.title;
-    if ((sm = twttr.app.currentPage().streamManager)) {
+    if ((sm = twttr.app.currentPage()._instance.streamManager)) {
                                                                                                     _D(f, 'I:', this.stream);
       if ($('.subtabs', sm.$titleContainer).length) {
         return true;
@@ -1166,7 +1167,7 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.cs = function() {
     try {
-      var cs = twttr.app.currentPage().streamManager.getCurrent();
+      var cs = twttr.app.currentPage()._instance.streamManager.getCurrent();
       if (cs.items) {
         return cs;
       }
@@ -1399,7 +1400,7 @@ var TweetfilterPrototype = function() {
         //normalize all inputs with different syntaxes
         switch(type) {
           case 'exact':
-            search.label = '»'+search.label+'«';
+            search.label = 'Â»'+search.label+'Â«';
             search.index = search.raw.toLowerCase();
             search.exact = search.simple = true;
           break;
@@ -1433,7 +1434,7 @@ var TweetfilterPrototype = function() {
             search.index = (search.excluded ? '-' : '')+'via:'+search.search;
             search.raw = (search.excluded ? '-' : '')+'via:'+search.label;
             if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) source match <-- via:"web"
-              search.label = 'via »'+exactmatch[1]+'«';
+              search.label = 'via Â»'+exactmatch[1]+'Â«';
               search.exact = true;
             } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
               search.label = 'via '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
@@ -1448,7 +1449,7 @@ var TweetfilterPrototype = function() {
             search.index = 'by:'+search.search;
             search.raw = 'by:'+search.label;
             if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) name match <-- by:"John Doe"
-              search.label = 'by »'+exactmatch[1]+'«';
+              search.label = 'by Â»'+exactmatch[1]+'Â«';
               search.exact = true;
             } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular name match <-- by:The Doe's=/(jane|john)\sdoe/
               search.label = 'by '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
@@ -2435,7 +2436,7 @@ var TweetfilterPrototype = function() {
         try {
           var h = document.documentElement.scrollHeight - document.documentElement.clientHeight; 
           window.scrollTo(0, h); 
-          twttr.app.currentPage().streamManager.getCurrent().getMoreOldItems();
+          twttr.app.currentPage()._instance.streamManager.getCurrent().getMoreOldItems();
         } catch(e) {}
         return false;
       }).delegate('#tf-export-settings', 'mouseenter', function() {

@@ -186,7 +186,7 @@ var TweetfilterPrototype = function() {
       title: '',
       user: ''
     };
-    this.stopchars = ' (){}[].,;-_#\'+*~´`?\\/&%$§"!^°'; //possible chars delimiting a phrase, for exact search. spares expensive regex match
+    this.stopchars = ' (){}[].,;-_#\'+*~Â´`?\\/&%$Â§"!^Â°'; //possible chars delimiting a phrase, for exact search. spares expensive regex match
     this.initretries = 10; //how many times try to initialize before giving up
     this.initialize();
     
@@ -273,7 +273,7 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.waitforstream = function() {
     var isloaded = true;
     try { 
-      this.cp = twttr.app.currentPage();
+      this.cp = twttr.app.currentPage()._instance;
       if (this.cp && !this.cp.streamManager) {
         this.stream.filterstream = false;
         return false;
@@ -673,7 +673,7 @@ var TweetfilterPrototype = function() {
 
   //attempts to find dasboard components if one is missing.
   Tweetfilter.prototype.findcomponents = function() {
-    var dashboard = twttr.app.currentPage().$node.find(".dashboard");
+    var dashboard = twttr.app.currentPage()._instance.$node.find(".dashboard");
     var components = $("> div.component", dashboard);
     var enableoptions = [], disableoptions = [];
     this.status.foundcomponents = [];
@@ -869,7 +869,7 @@ var TweetfilterPrototype = function() {
     //set on widget                                                                                 
     $('#tf-stream-title').html(this.stream.title);
     var sm, streamtitle = this.stream.title;
-    if ((sm = twttr.app.currentPage().streamManager)) {
+    if ((sm = twttr.app.currentPage()._instance.streamManager)) {
       if ($('.subtabs', sm.$titleContainer).length) {
         return true;
       }
@@ -1103,7 +1103,7 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.cs = function() {
     try {
-      var cs = twttr.app.currentPage().streamManager.getCurrent();
+      var cs = twttr.app.currentPage()._instance.streamManager.getCurrent();
       if (cs.items) {
         return cs;
       }
@@ -1315,7 +1315,7 @@ var TweetfilterPrototype = function() {
         //normalize all inputs with different syntaxes
         switch(type) {
           case 'exact':
-            search.label = '»'+search.label+'«';
+            search.label = 'Â»'+search.label+'Â«';
             search.index = search.raw.toLowerCase();
             search.exact = search.simple = true;
           break;
@@ -1349,7 +1349,7 @@ var TweetfilterPrototype = function() {
             search.index = (search.excluded ? '-' : '')+'via:'+search.search;
             search.raw = (search.excluded ? '-' : '')+'via:'+search.label;
             if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) source match <-- via:"web"
-              search.label = 'via »'+exactmatch[1]+'«';
+              search.label = 'via Â»'+exactmatch[1]+'Â«';
               search.exact = true;
             } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
               search.label = 'via '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
@@ -1364,7 +1364,7 @@ var TweetfilterPrototype = function() {
             search.index = 'by:'+search.search;
             search.raw = 'by:'+search.label;
             if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) name match <-- by:"John Doe"
-              search.label = 'by »'+exactmatch[1]+'«';
+              search.label = 'by Â»'+exactmatch[1]+'Â«';
               search.exact = true;
             } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) { //regular name match <-- by:The Doe's=/(jane|john)\sdoe/
               search.label = 'by '+ (typeof regularmatch[1] != 'undefined' ? regularmatch[1] : '/'+regularmatch[2]+'/i');
@@ -2160,7 +2160,7 @@ var TweetfilterPrototype = function() {
               '</ul>',
               '<div class="about">',
                 '<ul>',
-                  '<li class="version">Tweetfilter '+this.version+' <span>11-07-18 00:55</span></li>',
+                  '<li class="version">Tweetfilter '+this.version+' <span>2011-07-18 00:55</span></li>',
                   '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                   '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                   '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -2301,7 +2301,7 @@ var TweetfilterPrototype = function() {
         try {
           var h = document.documentElement.scrollHeight - document.documentElement.clientHeight; 
           window.scrollTo(0, h); 
-          twttr.app.currentPage().streamManager.getCurrent().getMoreOldItems();
+          twttr.app.currentPage()._instance.streamManager.getCurrent().getMoreOldItems();
         } catch(e) {}
         return false;
       }).delegate('#tf-export-settings', 'mouseenter', function() {
