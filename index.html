@@ -194,21 +194,21 @@
             <h3 id="filter-notes">Notes</h3>
             <ul>
               <li>All filters are <strong>case insensitive</strong>.</li>
-              <li>You can't filter Tweets mentioning you, unless you uncheck "skip mentioning me" in
+              <li><strong>Tweets mentioning you</strong> will not be added to "filtered" unless you uncheck <strong>skip mentioning me</strong> in
                 the Filter-options (except when in @Mentions or in exclusive mode).</li>
-              <li>You can't filter your own Tweets unless you uncheck the option "skip my posts" in the
+              <li><strong>Your own Tweets</strong> will not be filtered unless you uncheck the option "skip my posts" in the
                 "Filter" options (except when in timelines showing only your Tweets, like in "Your
                 Tweets" or "Your Tweets, retweeted", or in exclusive mode)</li>
-              <li>Simple text filters also match text contained in mentions (appearing as
+              <li><strong>Simple text filters</strong> also match <strong>text contained in @mentions</strong> (appearing as
                 @username-link). If setting a filter <code>tweetfilter</code>, a Tweet mentioning @tweetfilterjs
                 will be filtered. Use exact search (<code>"tweetfilter"</code>) or exclusions (<code>-@tweetfilterjs</code>)
                 to refine the filter process.</li>
-              <li>Text filters also scan the text within expanded links (the url). It can happen that
+              <li><strong>Text filters</strong> also scan the <strong>text within expanded links</strong> (the url). It can occur that
                 Tweets will be moved to filtered or back to passed (in case of exclusion) as soon as the
-                Twitter-API expands a link in the tweet containing a filter keyword. The option "expand
-                links" doesn't need to be active for this to work, links are expanded in the background
+                <strong>Twitter-API expands a link</strong> in the tweet containing a filter keyword. The option <strong>expand
+                links</strong> doesn't need to be active for this to work, links are expanded in the background
                 by the twitter.com application itself, not Tweetfilter. This way Tweetfilter can match
-                links pointing to certain domains even if they appear shortened.</li>
+                <strong>links pointing to certain domains</strong> even if they appear shortened.</li>
             </ul>
             <h3 id="usage-advanced">Advanced usage</h3>
             <p>If you know how to write Regular Expressions, Tweetfilter 2.0 offers you the
