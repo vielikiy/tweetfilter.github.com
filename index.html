@@ -69,7 +69,7 @@
               <li><strong>sound and message notification</strong> on new mentions and/or direct messages</li>
               <li>... please see section <a href="#options">Options</a> for full list of options.</li>
             </ul>
-            <h2 id="whatsnew">New most user requested features in Tweetfilter 2.0</h2>
+            <h2 id="features-user">New most user requested features in Tweetfilter 2.0</h2>
             <ul>
               <li><strong>Filter</strong> works on <strong>all timelines</strong> with Tweets, like
                 favorites, user profile or lists</li>
@@ -260,7 +260,8 @@
               <li><strong>show friend status</strong> shows with an icon near the name of tweeting (and retweeting) 
                 user in Tweets and friend lists who follows you (<span class="follower">white star</span>), 
                 who you follow (<span class="following">gray star</span>), and who is a mutual friend 
-                (<span class="mutual">yellow star</span>), refreshed automatically after an hour.</li>
+                (<span class="mutual">yellow star</span>), refreshed automatically after half an hour.
+              </li>
               <li><strong>show via in tweets</strong> displays twitter client information in Tweets
                 (which you can filter with via:)</li>
               <li><strong>show line breaks</strong> shows the line breaks in Tweets (like most desktop
@@ -275,14 +276,15 @@
             <ul>
               <li><strong>fixed dashboard</strong> keeps the dashboard in position while scrolling
                 down.</li>
-              <li><strong>compact activities</strong> hides the profile pictures in your activities
-                (Following, Followers)</li>
+              <li><strong>compact activities</strong> hides your last tweet, followings and followers and replaces
+              it with a compact dashboard component showing you extended overview. If this option is activated, 
+              the information on the dashboard component is updated every two minutes.</li>
               <li><strong>hide who to follow</strong> hides the "Who To Follow" and the "Similar To"
                 box.</li>
               <li><strong>hide trends</strong> hides the "Trends"-box</li>
               <li><strong>hide advertising</strong> hides the advertising-box</li>
+              <li><strong>hide invite friends</strong> prevents the "invite friends" prompt from showing randomly</li>
               <li><strong>minify menu</strong> shows only essential menu links</li>
-              <li><strong>expand last</strong> tweet shows the full last tweet </li>
             </ul>
             <h3 id="options-layout">Layout</h3>
             <ul>
@@ -306,14 +308,35 @@
               <li><strong>disable timeline cache</strong> causes a reload of the timeline on switch. On older/slower browser
                 versions like Firefox 3.6.x this solves lags when switching back to a stream which has
                 many loaded (and cached) Tweets. </li>
-              <li><strong>fill page with Tweets</strong> causes loading more tweets if less than 19 <strong>visible</strong> Tweets are in timeline. 
-                This option is disabled per default, use it wisely.</li>
+              <li><strong>fill page with Tweets</strong> causes loading more tweets if less than <strong>10 visible Tweets</strong> are in timeline. 
+                This option is disabled per default, use it wisely. Please note that <strong>loading more Tweets is an API-call</strong> (a call to 
+                the Twitter service), which are <strong>hourly limited</strong> by Twitter. If you <strong>hit the API limit</strong>, don't panic - 
+                your Twitter will very soon deliver new Tweets again - but make sure you know why this happened to prevent it in the future.</li>
               <li>export <strong>Tweetfilter settings</strong> by dragging the "Tweetfilter settings" bookmarklet to
                 your favorites bar (or, alternatively right click > add to bookmarks or similar). 
                 After you click it (while on twitter.com with Tweetfilter running), your settings from the moment of adding the
                 bookmarklet will be reloaded. This triggers one page refresh. <strong>Your current settings will be overwritten</strong>, export them 
                 to another bookmarklet before reloading the settings, if you still need them.</li>
             </ul>
+          </div>
+          <div id="changelog">
+            <h2>Tweetfilter Updates</h2>
+            <div id="whatsnew">
+              <h3>2.0.1 <em>(11-07-27)</em></h3>
+              <ul>
+                <li><strong>Fixed overlapping with dashboard pane</strong> when Tweet details with much content are opened. Tweetfilter now 
+                    resizes the open dashboard pane in realtime when the widget is maximized</li>
+                <li>Updated option <strong>compact activities</strong>, new dashboard component similar to the profile view</li>
+                <li>Option <strong>highlight mentioning me</strong> now works while filter is disabled</li>
+                <li>Fixed Tweetfilter not going back to idle state in realtime searches with fast flowing results</li>
+                <li>Removed dashboard option <strong>expand last tweet</strong>, that option was never requested, dashboard space is precious</li>
+                <li>Added option <strong>hide invite friends</strong> which prevents the big random "invite friends" message to show up</li>
+                <li>Fixed <strong>links to @Mentions and Messages</strong> in the Tweetfilter notification messages</li>
+                <li>Fixed <strong>friend status</strong> not showing up when switching stream before friend status was fully loaded</li>
+                <li>Small optimization of filter process resulting in a <strong>noticeable speed increase</strong> (♥ ECMA 5)</li>
+                <li>Fixed quick <strong>filter links</strong> not showing it's disabled state when in "Search with links"</li>
+              </ul>
+            </div>
           </div>
           <div id="feedback">
             <h2>Bugs, your ideas and feature suggestions</h2>

@@ -1,9 +1,9 @@
 var version = [
  {  
-   'number': '2.0',
-   'updated': '2011-07-20',
-   'minified-size': 136373,
-   'uncompressed-size': 187268,
-   'debug-size': 211568
+   'number': '2.0.1',
+   'updated': '2011-07-27',
+   'minified-size': 125022,
+   'uncompressed-size': 177177,
+   'debug-size': 201543
  }  
 ];
