@@ -355,7 +355,7 @@
               <ol>
                 <li>Add this bookmarklet to your favorites:
                   <div class="bookmarklet">
-                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20$('body').append('<script%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js%22%20type=%22text/javascript%22></script>');%20})()">
+                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20$('body').append('<script%20id=%22s'+(Math.floor(Math.random()*10000000))+'%22%20%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js%22%20type=%22text/javascript%22></script>');%20})()">
                       <span>Tweetfilter</span>
                     </a>
                     <div class="version">
@@ -590,7 +590,6 @@
         if (window.location.hash) {
           window.location.hash = window.location.hash;
         }
-        $('body').removeClass('loading');
         var versionvalue;
         for(var key in version[0]) {
           versionvalue=  version[0][key];
@@ -612,7 +611,9 @@
           $('em#howtoinstall').before(warning);
         }
       });
-      
+      $(function() {
+        $('body').removeClass('loading');
+      });
       var _gaq = _gaq || [];
       _gaq.push(['_setAccount', 'UA-24587451-1']);
       _gaq.push(['_gat._anonymizeIp']);
