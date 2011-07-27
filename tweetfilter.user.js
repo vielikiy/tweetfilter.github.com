@@ -2,7 +2,7 @@
 // @name           Tweetfilter
 // @namespace      Chilla42o
 // @description    Tweetfilter is a highly customizable timeline filter for the twitter.com web client
-// @version        2.0.1107251438
+// @version        2.0.1
 // @include        http://twitter.com/
 // @include        https://twitter.com/
 // @include        http://twitter.com/#*
@@ -32,7 +32,7 @@ var TweetfilterPrototype = function() {
 
   function Tweetfilter() {
     this._heartbeat = 250; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-    this.version = '2.0'; //current visible script version
+    this.version = '2.0.1'; //current visible script version
 
     this.options = { /* default option settings */
       /* widget options */
@@ -149,8 +149,6 @@ var TweetfilterPrototype = function() {
     this.polling = {
       tick: 0,         //count of ticks executed, mainly for debug
       timeoutid: -1,   //id returned by settimeout for next poll, to avoid multiple timeout calls, -1=can repoll
-      intervalid: -1,  //id of poll that happens once every minute (checking for new messages etc.)
-      
       suspend: false,  //immediately stop polling
       stop: true,      //stop poll after run of _poll()
       busy: false,     //is poll currently busy (already processing)
@@ -164,7 +162,7 @@ var TweetfilterPrototype = function() {
         addclass: false,       //add class to <body> - used for layout options, spares css recreation
         removeclass: false,    //remove class from <body>
         refreshfriends: false, //fetch users following and followers
-        refreshfriendstatus: false,        
+        refreshindex: false,   //rebuild the filter index
         refreshcss: false,     //refresh inline stylesheets
         refreshfilterlist: false,  //refresh the list of filters and exclusions on the widget
         refreshactivities: false,  //refresh compact activities display
@@ -460,9 +458,9 @@ var TweetfilterPrototype = function() {
     switch(this.stream.itemtype) {
       case 'tweet':
         this.enableoption('filter-retweets', !this.options['filter-disabled'] && this.stream.namespace !== 'RetweetsByOthers' && this.stream.namespace !=='RetweetsByYou');
-        this.enableoption('filter-links', !this.options['filter-disabled'] &&  !this.stream.params.hasOwnProperty('mode') || this.stream.params.mode !== 'links');
+        this.enableoption('filter-links', !this.options['filter-disabled'] &&  (!this.stream.params.hasOwnProperty('mode') || this.stream.params.mode !== 'links'));
         this.enableoption(['filter-inverted'], !this.options['filter-disabled'] && !exclusivemode);
-        this.enableoption(['filter-replies', 'filter-media', 'filter-links'], !this.options['filter-disabled']);
+        this.enableoption(['filter-replies', 'filter-media'], !this.options['filter-disabled']);
         this.enableoption(['skip-mentionsme'], !this.options['filter-disabled'] && this.stream.namespace!=='Mentions' && !exclusivemode);
         this.enableoption(['show-friends'], this.stream.namespace!=='YourTweetsRetweeted' && !(this.stream.namespace === 'User' && 
                                             this.stream.params.screenName.toLowerCase() === this.user.name));
@@ -1651,7 +1649,7 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.tweettextmouseup = function(e) {
     if (this.options['add-selection'] && !this.options['filter-disabled'] && $(e.target).closest('div.stream-item').length) {
-      if (window.getSelection().toString().length) {
+      if (window.getSelection().toString().length || e.which === 2) {
         e.stopImmediatePropagation();
         return false;
       }     }
@@ -1880,7 +1878,7 @@ var TweetfilterPrototype = function() {
       this.timeids.refreshfriends = window.setInterval(twttr.bind(this, function() {
         this.friendstatus.expires = 0; //force refresh
         this.poll('refreshfriends');
-      }), 10*60*1000); //every 10 mins
+      }), 30*60*1000); //every 30 mins
     }
     return true;
   };
@@ -1891,7 +1889,7 @@ var TweetfilterPrototype = function() {
       case 'friendids':
         if (this.cursors.friendids.fetched && !this.cursors.friendids.fetching && //have friends and followers been fetched and are not currently busy fetching data
             this.cursors.followerids.fetched && !this.cursors.followerids.fetching) {
-          this.friendstatus = {expires: parseInt(new Date().getTime() / 1000)+600}; //friend status expires
+          this.friendstatus = {expires: parseInt(new Date().getTime() / 1000)+30*60}; //friend status expires
           for (var i=0,imax=this.cursors.friendids.items.length,friendid;i<imax && (friendid=this.cursors.friendids.items[i]);i++) {
             this.friendstatus[friendid] = 1; //following
           }
@@ -2244,7 +2242,7 @@ var TweetfilterPrototype = function() {
               '</ul>',
               '<div class="about">',
                 '<ul>',
-                  '<li class="version">Tweetfilter '+this.version+' <span>11-07-25</span></li>',
+                  '<li class="version">Tweetfilter '+this.version+' <span>11-07-27</span></li>',
                   '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                   '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                   '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -2330,6 +2328,7 @@ var TweetfilterPrototype = function() {
               break;
           }
         }
+        e.stopImmediatePropagation();
         return false;
       })
       //delete a query from the list clicking 'x'
@@ -2677,67 +2676,70 @@ var TweetfilterPrototype = function() {
         case 'filter': //anything that hides/shows tweets
           if (this.options['filter-disabled'] || !this.streamready() || this.stream.itemtype !== 'tweet') {
             style.push('.tweet-actions > a.tf.menu { display:none !important; }'); //hide the "add to filter" dropdown in stream while disabled
+            this.setcss(name, style.join("\n"));
           }
           if (!cs.hasOwnProperty('filter')) {
             this.poll('parseitems');
+            this.poll('refreshindex');
             return true; 
           }
           if (!this.colors) {
-             this.refreshcolors();
+            this.refreshcolors();
           }
-          
-          if (!this.options['filter-disabled']) { //only if not disabled: refresh filter index, hide/show tweets
-            this.refreshindex();
-            var exclusivemode = this.exclusive.length > 0;
-            var hidecss = 'display:none;';
-            var showcss = 'display:block;';
-            var inverted = this.options['filter-inverted'];
-            var tweetsvisible = 0;
-            //.stream-tabs .stream-tab
-            if (exclusivemode) {
-               style.push('div.stream-items > div.stream-item { '+hidecss+'}'); //hide all tweets
-               style.push('#t'+cs.filter.hidden.join(',#t')+' { '+(showcss)+'}');
-               tweetsvisible = cs.filter.hidden.length;
-            } else {
-              if (inverted) {
-                style.push('div.stream-items > div.stream-item { '+hidecss+'}'); //hide all tweets
-                //inverted: show only hidden
-                if (cs.filter.hidden.length) {
-                  style.push('#t'+cs.filter.hidden.join(',#t')+' { '+showcss+'}');
-                  tweetsvisible = cs.filter.hidden.length;
-                }
+          if (this.streamready() && this.stream.itemtype === 'tweet') {
+            if (!this.options['filter-disabled']) { //only if not disabled: refresh filter index, hide/show tweets
+              this.refreshindex();
+              var exclusivemode = this.exclusive.length > 0;
+              var hidecss = 'display:none;';
+              var showcss = 'display:block;';
+              var inverted = this.options['filter-inverted'];
+              var tweetsvisible = 0;
+              //.stream-tabs .stream-tab
+              if (exclusivemode) {
+                 style.push('div.stream-items > div.stream-item { '+hidecss+'}'); //hide all tweets
+                 style.push('#t'+cs.filter.hidden.join(',#t')+' { '+(showcss)+'}');
+                 tweetsvisible = cs.filter.hidden.length;
               } else {
-                //show only passed, excluded
-                style.push('div.stream-items > div.stream-item { '+hidecss+'}'); //hide all tweets
-                if (cs.filter.passed.length) {
-                  style.push('#t'+cs.filter.passed.join(',#t')+' { '+showcss+'}');
-                  tweetsvisible = cs.filter.passed.length;
-                }
-                if (cs.filter.excluded.length) {
-                  style.push('#t'+cs.filter.excluded.join(',#t')+' { '+showcss+' }');
-                  tweetsvisible += cs.filter.excluded.length;
-                }
-                if (this.getoption('skip-me') && cs.filter.me.length) {
-                  style.push('#t'+cs.filter.me.join(',#t')+' { '+showcss+' }');
-                  tweetsvisible += cs.filter.me.length;
-                }
-                if (this.getoption('skip-mentionsme') && cs.filter.mentionsme.length) {
-                  style.push('#t'+cs.filter.mentionsme.join(',#t')+' { '+showcss+' }');
-                  tweetsvisible += cs.filter.mentionsme.length;
+                if (inverted) {
+                  style.push('div.stream-items > div.stream-item { '+hidecss+'}'); //hide all tweets
+                  //inverted: show only hidden
+                  if (cs.filter.hidden.length) {
+                    style.push('#t'+cs.filter.hidden.join(',#t')+' { '+showcss+'}');
+                    tweetsvisible = cs.filter.hidden.length;
+                  }
+                } else {
+                  //show only passed, excluded
+                  style.push('div.stream-items > div.stream-item { '+hidecss+'}'); //hide all tweets
+                  if (cs.filter.passed.length) {
+                    style.push('#t'+cs.filter.passed.join(',#t')+' { '+showcss+'}');
+                    tweetsvisible = cs.filter.passed.length;
+                  }
+                  if (cs.filter.excluded.length) {
+                    style.push('#t'+cs.filter.excluded.join(',#t')+' { '+showcss+' }');
+                    tweetsvisible += cs.filter.excluded.length;
+                  }
+                  if (this.getoption('skip-me') && cs.filter.me.length) {
+                    style.push('#t'+cs.filter.me.join(',#t')+' { '+showcss+' }');
+                    tweetsvisible += cs.filter.me.length;
+                  }
+                  if (this.getoption('skip-mentionsme') && cs.filter.mentionsme.length) {
+                    style.push('#t'+cs.filter.mentionsme.join(',#t')+' { '+showcss+' }');
+                    tweetsvisible += cs.filter.mentionsme.length;
+                  }
                 }
               }
+              /* highlight excluded tweets */
+              if (this.options['highlight-excluded'] && cs.filter.excluded.length) { //highlight tweets matching a filter exclusion
+                style.push('#t'+cs.filter.excluded.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.excluded, '0.4'), '#FFFFFF')+' }'); //gradient
+              }
             }
-            /* highlight excluded tweets */
-            if (this.options['highlight-excluded'] && cs.filter.excluded.length) { //highlight tweets matching a filter exclusion
-              style.push('#t'+cs.filter.excluded.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.excluded, '0.4'), '#FFFFFF')+' }'); //gradient
+            /* highlight replies to me (overwrites excludes, if colliding) */
+            if (this.options['highlight-mentionsme'] && this.stream.namespace !== 'Mentions' && cs.filter.mentionsme.length) { //highlight tweets mentionining current user
+              style.push('#t'+cs.filter.mentionsme.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.reply, '0.4'), '#FFFFFF')+' }'); //gradient
             }
-          }
-          /* highlight replies to me (overwrites excludes, if colliding) */
-          if (this.options['highlight-mentionsme'] && this.stream.namespace !== 'Mentions' && cs.filter.mentionsme.length) { //highlight tweets mentionining current user
-            style.push('#t'+cs.filter.mentionsme.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.reply, '0.4'), '#FFFFFF')+' }'); //gradient
           }
           this.setcss(name, style.join("\n"));
-          if (!this.options['filter-disabled']) {
+          if (this.streamready() && this.stream.itemtype === 'tweet' && !this.options['filter-disabled']) {
             $('body').toggleClass('tf-filter-inverted', inverted);
             $('#tf-count-items').html(cs.filter.items.length); //all tweets in timeline
             $('#tf-count-filtered').html(cs.filter.hidden.length); //filtered (hidden) tweets
@@ -2752,6 +2754,9 @@ var TweetfilterPrototype = function() {
           } else {
             $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
             $('.tf-queries > li', this.widget).toggleClass('notfound', true);
+          }
+          if (!this.streamready()) {
+            this.poll('refreshcss', ['filter']); //repoll 
           }
           break;
         case 'friends':
@@ -3005,7 +3010,7 @@ var TweetfilterPrototype = function() {
           'body.tf-hide-trends div.dashboard > div.component.trends { display:none; }',
           'body.tf-hide-wtf div.dashboard > div.component.wtf { display:none; }',
           'body.tf-hide-ad div.dashboard > div.component.ad { display:none; }',
-          'body.tf-hide-invite div.dashboard > div.component.invite { display:none; }',
+          'body.tf-hide-invite div.dashboard > div.component.invite { display:none !important; }',
           'body.tf-minify-menu div.footer.inline-list li { display:none }',
           'body.tf-minify-menu div.footer.inline-list li:nth-child(5),',
           'body.tf-minify-menu div.footer.inline-list li:nth-child(9),',
@@ -3159,14 +3164,11 @@ var TweetfilterPrototype = function() {
   
   
   Tweetfilter.prototype.arraydiff = function(a, b) {
-   var  diff = [];
-   awalk: for (var i=0,imax=a.length;i<imax;i++) {
-      for (var j=0,jmax=b.length;j<jmax;j++) {
-        if (b[j] === a[i]) {
-          continue awalk;
-        }            
+   var diff = [];
+   for (var i=0,imax=a.length;i<imax;i++) {
+      if (!~b.indexOf(a[i])){
+        diff.push(a[i]);
       }
-      diff.push(a[i]);
     }
     return diff;
   }
