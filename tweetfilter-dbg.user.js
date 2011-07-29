@@ -2,7 +2,7 @@
 // @name           Tweetfilter
 // @namespace      Chilla42o
 // @description    Tweetfilter is a highly customizable timeline filter for the twitter.com web client
-// @version        2.0.2
+// @version        2.0.3
 // @include        http://twitter.com/
 // @include        https://twitter.com/
 // @include        http://twitter.com/#*
@@ -49,7 +49,7 @@ var TweetfilterPrototype = function() {
 
     this.options = { /* default option settings */
       /* widget options */
-      'widget-layout': 0,  /* widget layout state: 0=maximized, 1=compact, 2=minimized */
+      'filter-minimized': false,  /* widget minimized state */
       /* global options */
       'hide-topbar': false,  /* auto-hide top bar */
       'hide-tweetbox': false,     /* main tweet box */
@@ -334,7 +334,7 @@ var TweetfilterPrototype = function() {
       isloaded = (isprotected || cs.$node.find('.stream-end').length || cs.items.length); //&& !cs._getMoreOldItemsLock && cs._loadedStreamOnce;
     } catch(e) {
       isloaded = false;
-                                                                                                    _D(f, 'E:', e);
+      _D(f, 'E:', e);
     }
     if (!isloaded) {
       if (this.stream.status !== 'loading') {
@@ -639,7 +639,7 @@ var TweetfilterPrototype = function() {
         this.polling.timeoutid = -1;
         this._poll();
       }), this._heartbeat);
-    }                                                                                               else _D('F:_breathe', 'D:NOT repolling tick '+this.polling.tick+', already queued!');
+    } else _D('F:_breathe', 'D:NOT repolling tick '+this.polling.tick+', already queued!');
   };
   
   Tweetfilter.prototype.refreshuser = function() {
@@ -2327,7 +2327,7 @@ var TweetfilterPrototype = function() {
           '<div class="tf-header">',
             '<div id="tf-stream-nav">',
                '<a class="top" title="to the top" href="#" onclick="window.scrollTo(0,0); return false;"><i></i><b></b></a>'+
-               '<a class="layout" data-option="widget-layout" title="toggle Tweetfilter layout"><i class="tf-icon"></i></a>'+
+               '<a class="layout" data-option="filter-minimized" title="toggle Tweetfilter layout"><i class="tf-icon"></i></a>'+
                '<a class="bottom" title="to the bottom" href="#"><i></i><b></b></a>'+
             '</div>',
             '<ul class="tf-filters">',
@@ -2481,7 +2481,7 @@ var TweetfilterPrototype = function() {
               '</ul>',
               '<div class="about">',
                 '<ul>',
-                  '<li class="version">Tweetfilter '+this.version+' <span>11-07-29</span></li>',
+                  '<li class="version">Tweetfilter '+this.version+' <span>11-07-30</span></li>',
                   '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                   '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                   '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
