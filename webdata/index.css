@@ -19,6 +19,7 @@ li { margin-bottom: 0.2em; }
 #sidebar a { color: #1C6BBD; font-size:1.1em; font-family:"Droid Serif",Georgia,"Times New Roman",Times,serif; text-decoration:none; }
 #sidebar a:hover { text-decoration:underline; } 
 #changelog > div{ background: #FFFAB4; padding: 1px 15px 15px 15px; -moz-border-radius:15px; webkit-border-radius:15px; border-radius:15px; }
+#changelog > div > div { max-height: 420px; overflow:auto; }
 #changelog h3 > em { font-size:70%; }
 #all { max-width:1200px; min-width:650px; background:#fff; margin:25px auto; -moz-border-radius:15px; webkit-border-radius:15px; border-radius:15px; }
 

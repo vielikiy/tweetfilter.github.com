@@ -253,6 +253,7 @@
                 add the selection to the exclusion list.</li>
               <li><strong>highlight mentioning me</strong> adds some color to Tweets containing an @Mention
                 of you  (disabled and inactive in @Mentions).</li>
+              <li><strong>highlight my tweets</strong> adds color to Tweets written by you.</li>
               <li><strong>highlight excluded</strong> adds color gradient to Tweets which match a filter from the Exclusions-tab.</li>
             </ul>
             <h3 id="options-timeline">Timeline</h3>
@@ -266,6 +267,7 @@
                 (which you can filter with via:)</li>
               <li><strong>show line breaks</strong> shows the line breaks in Tweets (like most desktop
                 clients do)</li>
+              <li><strong>show Tweet's local time</strong> displays the original time of the tweet (posting user's timezone)</li>
               <li><strong>expand new tweets</strong> immediately shows new tweets instead of new new tweets
                 bar</li>
               <li><strong>expand links</strong> expands shortened urls in Tweets</li>
@@ -312,6 +314,8 @@
                 This option is disabled per default, use it wisely. Please note that <strong>loading more Tweets is an API-call</strong> (a call to 
                 the Twitter service), which are <strong>hourly limited</strong> by Twitter. If you <strong>hit the API limit</strong>, don't panic - 
                 your Twitter will very soon deliver new Tweets again - but make sure you know why this happened to prevent it in the future.</li>
+              <li><strong>expanded link target</strong> makes links in timeline point directly to the expanded link 
+                target instead of the t.co-link. This works independently from the option <strong>expand links</strong>.</li>
               <li>export <strong>Tweetfilter settings</strong> by dragging the "Tweetfilter settings" bookmarklet to
                 your favorites bar (or, alternatively right click > add to bookmarks or similar). 
                 After you click it (while on twitter.com with Tweetfilter running), your settings from the moment of adding the
@@ -322,20 +326,36 @@
           <div id="changelog">
             <h2>Tweetfilter Updates</h2>
             <div id="whatsnew">
-              <h3>2.0.1 <em>(11-07-27)</em></h3>
-              <ul>
-                <li><strong>Fixed overlapping with dashboard pane</strong> when Tweet details with much content are opened. Tweetfilter now 
-                    resizes the open dashboard pane in realtime when the widget is maximized</li>
-                <li>Updated option <strong>compact activities</strong>, new dashboard component similar to the profile view</li>
-                <li>Option <strong>highlight mentioning me</strong> now works while filter is disabled</li>
-                <li>Fixed Tweetfilter not going back to idle state in realtime searches with fast flowing results</li>
-                <li>Removed dashboard option <strong>expand last tweet</strong>, that option was never requested, dashboard space is precious</li>
-                <li>Added option <strong>hide invite friends</strong> which prevents the big random "invite friends" message to show up</li>
-                <li>Fixed <strong>links to @Mentions and Messages</strong> in the Tweetfilter notification messages</li>
-                <li>Fixed <strong>friend status</strong> not showing up when switching stream before friend status was fully loaded</li>
-                <li>Small optimization of filter process resulting in a <strong>noticeable speed increase</strong> (♥ ECMA 5)</li>
-                <li>Fixed quick <strong>filter links</strong> not showing it's disabled state when in "Search with links"</li>
-              </ul>
+              <div>
+                <h3>2.0.2 <em>(11-07-29)</em></h3>
+                <ul>
+                  <li>Fixed <strong>default options</strong> not loading after cleaning local storage or after first install</li>
+                  <li>Fixed widget overlapping dark background in media gallery</li>
+                  <li>Fixed <strong>skip my posts</strong> (Filter), option was broken</li>
+                  <li>Added <em>experimental</em> option <strong>show local time</strong> (Timeline), which displays the original local time a tweet was posted. This 
+                     is displayed only if the user has set it's time zone.</li>
+                  <li>Added option <strong>highlight my tweets</strong> (Filter) which adds a gradient to your own tweets</li>
+                  <li>Added option <strong>hide promoted tweets</strong> (Filter) that tells Tweetfilter to <strong>always hide</strong> sponsored Tweets</li>
+                  <li>Added option <strong>hide promoted content</strong> (Dashboard) to hide promoted trends and who to follow</li>
+                  <li>Fixed <strong>expand links</strong> occasionally chopping off the #hash from links, workaround for Twitter bug</li>
+                  <li>Added option <strong>expand link target</strong> (More) which leads your click directly to the expanded link target instead of the t.co-link. This works 
+                      independently from the option <strong>expand links</strong></li>
+                </ul>
+                <h3>2.0.1 <em>(11-07-27)</em></h3>
+                <ul>
+                  <li><strong>Fixed overlapping with dashboard pane</strong> when Tweet details with much content are opened. Tweetfilter now 
+                      resizes the open dashboard pane in realtime when the widget is maximized</li>
+                  <li>Updated option <strong>compact activities</strong>, new dashboard component similar to the profile view</li>
+                  <li>Option <strong>highlight mentioning me</strong> now works while filter is disabled</li>
+                  <li>Fixed Tweetfilter not going back to idle state in realtime searches with fast flowing results</li>
+                  <li>Removed dashboard option <strong>expand last tweet</strong>, that option was never requested, dashboard space is precious</li>
+                  <li>Added option <strong>hide invite friends</strong> which prevents the big random "invite friends" message to show up</li>
+                  <li>Fixed <strong>links to @Mentions and Messages</strong> in the Tweetfilter notification messages</li>
+                  <li>Fixed <strong>friend status</strong> not showing up when switching stream before friend status was fully loaded</li>
+                  <li>Small optimization of filter process resulting in a <strong>noticeable speed increase</strong> (♥ ECMA 5)</li>
+                  <li>Fixed quick <strong>filter links</strong> not showing it's disabled state when in "Search with links"</li>
+                </ul>
+              </div>
             </div>
           </div>
           <div id="feedback">
@@ -355,7 +375,7 @@
               <ol>
                 <li>Add this bookmarklet to your favorites:
                   <div class="bookmarklet">
-                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20$('body').append('<script%20id=%22s'+(Math.floor(Math.random()*10000000))+'%22%20%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js%22%20type=%22text/javascript%22></script>');%20})()">
+                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20var%20d=new%20Date();$('body').append('<script%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js?v'+d.getFullYear()+d.getMonth()+d.getDate()+'%22%20type=%22text/javascript%22></script>');})()">
                       <span>Tweetfilter</span>
                     </a>
                     <div class="version">
