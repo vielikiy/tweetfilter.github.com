@@ -50,6 +50,8 @@ span.warning { display:block; padding:10px; color:#FF6161; background:#FCFFCD; b
 #links .missing em { color: #777; }
 #links li { margin-bottom: 0.8em; }
 #links li em { display:block; color:#333; }
+#links li em a { font-size:1em; color:#333; }
+
 div.bookmarklet { position:relative; }
 div.bookmarklet > div.version { position:absolute; left: 100px; top:10px; color:#999; }
 #sidebar div.bookmarklet > div.version a { color:#999; }
