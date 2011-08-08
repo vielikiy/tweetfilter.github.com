@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="author" content="Chilla42o <tweetfilterjs@gmail.com>" />
-    <title>Tweetfilter - timeline filter for twitter.com</title>
+    <title>Tweetfilter - browser extension for twitter.com / #newtwitter</title>
     <style type="text/css">
       body.loading { overflow: hidden; background:#fff url(webdata/page-loading.gif) no-repeat center; height:150px; }
       body.loading #all { visibility: hidden !important; }
@@ -327,6 +327,15 @@
             <h2>Tweetfilter Updates</h2>
             <div id="whatsnew">
               <div>
+                <h3>2.0.4</h3>
+                <ul>
+                  <li>Fixed <strong>show friend status</strong> (Timeline) to sostain up to 600.000 friends (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/8" target="_blank">issue #8</a>)</li>
+                  <li>Added option <strong>search realtime</strong> (More) which forces all <strong>searches defaulting to "All Tweets"</strong> instead of <strong>"Top Tweets"</strong>. This works
+                      in the <strong>black bar search</strong>, when <strong>clicking hashtags</strong> in timeline and in <strong>saved searches</strong>.</li>
+                  <li>Fixed filter icons in Tweets disappearing after favorite or retweet action (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/5" target="_blank">issue #5</a>)
+                  <li>Updated option <strong>expanded link targets</strong> (More) to fix another case of broken expanded links, caused by a Twitter bug in link resolver (read more about in <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/4" target="_blank">issue #4</a>)</li> 
+                  <li>Other minor updates, fixes and optimizations for better stability</li>                
+                </ul>
                 <h3>2.0.3 <em>(Hotfix, 11-07-29)</em></h3>
                 <ul>
                   <li>Fixed <strong>minimize widget</strong> not working after update</li>
@@ -379,7 +388,7 @@
               <ol>
                 <li>Add this bookmarklet to your favorites:
                   <div class="bookmarklet">
-                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20var%20d=new%20Date();$('body').append('<script%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js?v'+d.getFullYear()+d.getMonth()+d.getDate()+'%22%20type=%22text/javascript%22></script>');})()">
+                    <a class="bookmarklet" title="Tweetfilter 2.0" onclick="return false;" href="javascript:(function()%20{%20var%20d=new%20Date();$('body').append('<script%20src=%22'+location.protocol+'//userscripts.org/scripts/source/49905.user.js?v'+d.getFullYear()+d.getMonth()+d.getDay()+'%22%20type=%22text/javascript%22></script>');})()">
                       <span>Tweetfilter</span>
                     </a>
                     <div class="version">
@@ -452,7 +461,7 @@
            <p>Tweetfilter started in 2009 ("old" Twitter times) as project on the well known
             <a href="http://userscripts.org/scripts/show/49905" rel="nofollow">userscripts.org</a>, where the (minified) bookmarklet is still hosted.
             Since 2011 Tweetfilter 2.0+ is maintained on the fabulous <a href="https://github.com/Tweetfilter/tweetfilter.github.com">github.com</a>, where also this site 
-            you're viewing is currently hosted.</p>
+            you're viewing is currently stored.</p>
           </div>
           <div id="support">
             <h2>Support Tweetfilter</h2>
