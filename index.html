@@ -316,6 +316,9 @@
                 your Twitter will very soon deliver new Tweets again - but make sure you know why this happened to prevent it in the future.</li>
               <li><strong>expanded link target</strong> makes links in timeline point directly to the expanded link 
                 target instead of the t.co-link. This works independently from the option <strong>expand links</strong>.</li>
+               <li><strong>default search to "all"</strong> (More) forces all <strong>searches defaulting to "All Tweets"</strong> instead of 
+                 <strong>"Top Tweets"</strong>. This option affects the top <strong>black bar search</strong>, <strong>clicks on hashtags</strong> in timeline 
+                 and the selection of <strong>saved searches</strong>.</li>
               <li>export <strong>Tweetfilter settings</strong> by dragging the "Tweetfilter settings" bookmarklet to
                 your favorites bar (or, alternatively right click > add to bookmarks or similar). 
                 After you click it (while on twitter.com with Tweetfilter running), your settings from the moment of adding the
@@ -330,7 +333,7 @@
                 <h3>2.0.4</h3>
                 <ul>
                   <li>Fixed <strong>show friend status</strong> (Timeline) to sostain up to 600.000 friends (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/8" target="_blank">issue #8</a>)</li>
-                  <li>Added option <strong>search realtime</strong> (More) which forces all <strong>searches defaulting to "All Tweets"</strong> instead of <strong>"Top Tweets"</strong>. This works
+                  <li>Added option <strong>default search to "all"</strong> (More) which forces all <strong>searches defaulting to "All Tweets"</strong> instead of <strong>"Top Tweets"</strong>. This works
                       in the <strong>black bar search</strong>, when <strong>clicking hashtags</strong> in timeline and in <strong>saved searches</strong>.</li>
                   <li>Fixed filter icons in Tweets disappearing after favorite or retweet action (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/5" target="_blank">issue #5</a>)
                   <li>Updated option <strong>expanded link targets</strong> (More) to fix another case of broken expanded links, caused by a Twitter bug in link resolver (read more about in <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/4" target="_blank">issue #4</a>)</li> 
@@ -566,6 +569,7 @@
       var showtweets = function(tweets) {
         var tweet, feedhtml = ["<ul>"];
         for (var t=0,tmax=tweets.results.length;t<tmax && (tweet=tweets.results[t]);t++) {
+            if (tweet.from_user === 'tweetfilterjs' && tweet.text[0] === '@') continue;
             feedhtml.push('<li>'+
                             '<div class="pic">'+
                               '<a target="_blank" href="https://twitter.com/#!/'+tweet.from_user+'" title="'+tweet.from_user+'">'+
@@ -648,8 +652,6 @@
         } catch(e) {
           $('em#howtoinstall').before(warning);
         }
-      });
-      $(function() {
         $('body').removeClass('loading');
       });
       var _gaq = _gaq || [];
