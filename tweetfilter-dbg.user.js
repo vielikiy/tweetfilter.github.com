@@ -311,8 +311,8 @@ var TweetfilterPrototype = function() {
         this.status.initialized = true;
         this._poll();
         return true;
-      }                                                                                             else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
-    }                                                                                               else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
+      } else _D('F:initialize', 'W:required twttr components not loaded, reinitializing.');
+    } else _D('F:initialize', 'W:jquery or twttr not loaded, reinitializing');
                                                                                                     _D('F:initialize', 'reinitialize, ', this.initretries, 'retries left');
     if (this.initretries--) {
       setTimeout(function() {
@@ -375,17 +375,17 @@ var TweetfilterPrototype = function() {
                                                                                                     _D('F:twttr', 'W:stream event triggered', e, arguments);
         this.poll('parseitems');
       }));
+      cs.$node.delegate('a.tf', 'mousedown click', twttr.bind(this, function(e) {return this.tweetactionsclick(e);}));
       if (!twttr.$elements.page.data('tweetfilter')) {
                                                                                                     _D(f, 'I:delegating events.');                                                                                                 
-        twttr.$elements.page.delegate('.stream-item', 'click', twttr.bind(this, function(e) { return this.tweetclick();}))
-                .delegate('a.tf', 'mousedown', twttr.bind(this, function(e) {this.tweetactionsclick(e);})) 
+        twttr.$elements.page.delegate('.stream-item', 'click', twttr.bind(this, function(e) {return this.tweetclick();}))
                 .delegate('.tf-via > a', 'click', twttr.bind(this, function(e) {return this.tweetclickvia(e);}))
                 .delegate('div.tweet-text', 'mousedown', twttr.bind(this, function(e) {return this.tweettextmousedown(e);}))
                 .delegate('div.tweet-text', 'mouseup click', twttr.bind(this, function(e) {return this.tweettextmouseup(e);}))
                 .delegate('ul.tf-menu', 'mouseleave', twttr.bind(this, function(e) {this.filtermenuleave(e);}))
                 .delegate('.twitter-timeline-link', 'click', twttr.bind(this, function(e) {return this.tweetclicklink(e);}))
-                .delegate('.twitter-hashtag', 'click', twttr.bind(this, function(e) { return this.tweetclickhashtag(e);}))
-                .delegate('li.stream-tab-searches a[href]', 'mousedown', twttr.bind(this, function(e) { return this.savedsearchclick(e);}))
+                .delegate('.twitter-hashtag', 'click', twttr.bind(this, function(e) {return this.tweetclickhashtag(e);}))
+                .delegate('li.stream-tab-searches a[href]', 'mousedown', twttr.bind(this, function(e) {return this.savedsearchclick(e);}))
                 .data('tweetfilter', 1);
         
       }                                                                                             
@@ -2128,7 +2128,6 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.tweetactionsclick = function(e) {
     switch(e.type) {
       case 'mousedown':
-        if (e.which !== 1) return true; 
         e.stopImmediatePropagation();
         var streamitem = $(e.target).closest('div.stream-item'), that=this;
         var itemid = streamitem.attr('data-item-id');
@@ -2147,6 +2146,7 @@ var TweetfilterPrototype = function() {
 
           switch(e.currentTarget.className.substr(3)) {
             case 'dm':
+              if (e.which !== 1) return true; 
               twttr.API.User.find(item.screenname, function(user) {
                 var imageurl = user.profileImageUrl;
                 twttr.currentUser.relationshipWith(item.screenname, function(relation) {
@@ -2174,6 +2174,7 @@ var TweetfilterPrototype = function() {
               });
               break;
             case 'quote':
+              if (e.which !== 1) return true; 
               var tweettext = false;
               for (var i=0,imax=cs.items.length;i<imax;i++) {
                 if (cs.items[i].id === itemid) {
@@ -2195,6 +2196,7 @@ var TweetfilterPrototype = function() {
 
               break;
             case 'menu':
+              if (e.which !== 1) return true; 
               $('ul.tf-menu', cs.$node).remove();
                                                                                                     _D('filter_menu_mousedown');
               $(e.target).closest('div').prepend(this.tweetfiltergetmenu(streamitem, cs.filter.itemids[itemid]));
@@ -2396,7 +2398,7 @@ var TweetfilterPrototype = function() {
                                                                                                     _D(f, 'W:stream is not ready');
             return false;
           }
-        }                                                                                           else _D(f, 'W:stream item not found!');
+        } else _D(f, 'W:stream item not found!');
       }
     }
                                                                                                     _D(f, 'check tweets', checktweets);
