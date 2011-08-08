@@ -3342,7 +3342,6 @@ var TweetfilterPrototype = function() {
           '#tf.minimized #tf-stream-nav a.top { left: 0; top: 0; }',
           '#tf.minimized #tf-stream-nav > a { float: left; top: 0; }',
 
-
           /* small twitter layout fixes */
           'div.tweet-activity { width:100%; }',
           'div.media-gallery-overlay { position:fixed !important; }', //avoid overlapping of video preview
@@ -3360,7 +3359,7 @@ var TweetfilterPrototype = function() {
           '.tf-actions { right: -5px; visibility:hidden; display:block; }',
           '.stream-tweet:hover .tf-actions, .focused-stream-item .stream-tweet .tf-actions { visibility:visible; }',
           '.tweet-actions a span b, .tf-actions a span b { display:none; }',
-          '.tf-actions a { outline:none!important; }',
+          '.tf-actions a { outline:none!important; text-decoration:none !important; }',
           '.tf-actions a span b { font-weight:400; }',
           '.tf-actions a span i { text-indent:-99999px; outline:none; background:transparent url(../img/sprite-icons.png) no-repeat; width:15px; height:15px; display:inline-block; vertical-align:baseline; position:relative; margin:0 3px -3px 2px; }',
           '.tf-actions a.tf span b { display:none; }',
