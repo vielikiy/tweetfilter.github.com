@@ -173,7 +173,6 @@ var TweetfilterPrototype = function() {
       busy: false,     //is poll currently busy (already processing)
       working: false,
       events: { //possible events executed during poll. order matters!
-        waitforstream: false,  //wait until stream is loaded
         refreshoptions: false, //set enabled/disabled options
         parseitems: false, //parse through cached tweets (outside the dom)
         parsestream: false,  //parse through displayed tweets (in the dom)
@@ -365,7 +364,7 @@ var TweetfilterPrototype = function() {
       }
       var cs = this.cp.streamManager.getCurrent();
       var isprotected = cs.params.hasOwnProperty('canViewUser') ? !cs.params.canViewUser : false; 
-      isloaded = $('.stream-loading', cs.$node).length === 0 && (isprotected || cs.$node.find('.no-members').length || cs.$node.find('.stream-end').length || cs.items.length); //&& !cs._getMoreOldItemsLock && cs._loadedStreamOnce;
+      isloaded = (isprotected || cs.$node.find('.no-members').length || cs.$node.find('.stream-end').length || cs.items.length); //&& !cs._getMoreOldItemsLock && cs._loadedStreamOnce;
     } catch(e) {
       isloaded = false;
     }
@@ -1335,7 +1334,7 @@ var TweetfilterPrototype = function() {
       }
     }
     var cs = this.cs();
-    if (this.stream.itemtype !== 'tweet' && this.stream.itemtype !== 'user') {
+    if (this.status.disabledbystream) {
       return true; //stop polling this function, not a tweet/user stream
     }
     if (!cs.hasOwnProperty('filter')) { //first parse items in cache!
