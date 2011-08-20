@@ -38,7 +38,8 @@ var TweetfilterPrototype = function() {
     
     this.version = '2.0.5'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-   
+    this._betafeatures = false; //enable/disable (unfinished) beata features
+    
     // internal route, page and stream declarations
     var pagemap = { //pagename => route.name
       'Home': ['index', 'home', 'yourActivity', 'activity', 'mentions', 'replies', 'retweets', 'retweetsByOthers', 'retweetsOfMine', 'listInHome', 'savedSearch'],
@@ -203,7 +204,7 @@ var TweetfilterPrototype = function() {
       'alert-mention': true,/* message alert when new mentions arrived */
       'alert-sound-mention': true,/* play sound when new direct messages received */
       /* options changing the dashboard */
-      'compact-activities': false,  /* compact activities */
+      'compact-activities': true,  /* compact activities */
       'hide-wtf': false,     /* hide who to follow */
       'hide-trends': false,  /* hide trends */
       'hide-ad': true,  /* hide advertising */
@@ -228,6 +229,8 @@ var TweetfilterPrototype = function() {
       'show-br': true,          /* show line breaks in tweets */
       'add-selection': false,    /* show add to filter menu after simple text selection in tweets */
       'expand-new': true,       /* expand new tweets */
+      'hide-last': false,       /* expand last tweet on dashboard */
+      'expand-last': true,       /* expand last tweet on dashboard */
       'expand-links': false,    /* show expanded links */
       'expand-link-targets': false,    /* change links pointing to expanded url instead of shortened*/
       'small-links': false,     /* show small links */
@@ -414,23 +417,24 @@ var TweetfilterPrototype = function() {
             this._pageswitched = true;
             if (!twttr.$elements.page.data('_tfbound')) {
               twttr.$elements.page.delegate('li.stream-tab-searches a[href!=#]', 'mousedown click', (function(e) {return this.savedsearchclick(e);}).bind(this))
+                   .delegate('#details-pane-outer a.inline-media-image', 'mouseenter mouseleave', (function(e) {return this.tweethovermedia(e);}).bind(this))
                    .data('_tfbound', 1);
             }
             this.trigger('pageswitched', {page: this._page});
           }
           this.sm = this.cp.streamManager;
           if (!this.sm._tfbound) {
-            this.sm.bind('newItemsCountChanged switchingToStream didNotSwitch', this.twttreventhandler.bind(this));
+            this.sm.bind('newItemsCountChanged switchingToStream', this.twttreventhandler.bind(this));
             this.sm._tfbound = true;
-            this.sm.$streamContainer.delegate('.stream-item', 'click', (function(e) {return this.tweetclick();}).bind(this))
+            this.sm.$streamContainer.delegate('div.stream-item', 'click', (function() {return this.tweetclick();}).bind(this))
                          .delegate('a.tf', 'mousedown click', (function(e) {return this.tweetactionsclick(e);}).bind(this))
-                         .delegate('.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
+                         .delegate('span.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
                          .delegate('div.tweet-text', 'mousedown', (function(e) {return this.tweettextmousedown(e);}).bind(this))
                          .delegate('div.tweet-text', 'mouseup click', (function(e) {return this.tweettextmouseup(e);}).bind(this))
                          .delegate('span.tf-rtc', 'click', (function(e) {return this.tweetclickretweeted(e);}).bind(this))
                          .delegate('ul.tf-menu', 'mouseleave', (function(e) {this.filtermenuleave(e);}).bind(this))
-                         .delegate('.twitter-timeline-link', 'click', (function(e) {return this.tweetclicklink(e);}).bind(this))
-                         .delegate('.twitter-hashtag', 'mousedown click', (function(e) {return this.tweetclickhashtag(e);}).bind(this));
+                         .delegate('a.twitter-timeline-link', 'click', (function(e) {return this.tweetclicklink(e);}).bind(this))
+                         .delegate('a.twitter-hashtag', 'mousedown click', (function(e) {return this.tweetclickhashtag(e);}).bind(this));
           }
           if ((this.cs = this.sm.getCurrent())) {
             if (this._stream.key !== this.cs._cacheKey) { //has stream switched
@@ -455,15 +459,7 @@ var TweetfilterPrototype = function() {
                   this.cs.bind('didTweet doneLoadingMore streamEnd', this.twttreventhandler.bind(this));
                   this.cs._tfbound = true;
                 }
-                if (!this.cs.$node.data('_tfbound')) { 
-                  this.cs.$node.delegate('.stream-item', 'click', (function(e) {return this.tweetclick();}).bind(this))
-                          .delegate('a.tf', 'mousedown click', (function(e) {return this.tweetactionsclick(e);}).bind(this))
-                          .delegate('.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
-                          .delegate('div.tweet-text', 'mousedown', (function(e) {return this.tweettextmousedown(e);}).bind(this))
-                          .delegate('div.tweet-text', 'mouseup click', (function(e) {return this.tweettextmouseup(e);}).bind(this))
-                          .delegate('span.tf-rtc', 'click', (function(e) {return this.tweetclickretweeted(e);}).bind(this))
-                          .data('_tfbound',1)
-                }
+                this.clearstreamcache();
                 this._stream.key = this.cs._cacheKey;
                 this._stream.itemtype = this.cs.streamItemType;
                 this._isloading = false;
@@ -504,11 +500,20 @@ var TweetfilterPrototype = function() {
     }
   };
   
+  Tweetfilter.prototype.clearstreamcache = function() {
+    if (this.getoption('clear-stream-cache')) {
+      if (this._stream.key && this.sm && this.sm.streams && this.sm.streams[this._stream.key]) {
+        delete this.sm.streams[this._stream.key];
+      }
+    }
+  };
+  
   Tweetfilter.prototype.twttreventhandler = function(e,a,b) {
     switch(e.type) {
       //this event is triggered in twttr.router, when a new location has been set (hash changed). we are only interested in pages we know (this.routemap)
       case 'routeFollowed': //a = route
         if (!this._routemap[a.name]) {  //get stream for route
+          this.clearstreamcache();
           this._stream.key = this._stream.namespace = ''; 
           this._stream.params = {};
           this.trigger('routeunknown', {route: a});
@@ -560,6 +565,8 @@ var TweetfilterPrototype = function() {
        }
       break;
       case 'didTweet':
+        this.trigger('newitemsloaded', {count: 1});
+      break;
       case 'newItemsCountChanged': //a = count of new items
         this.trigger('newitemsloaded', {count: a});
       break;
@@ -631,7 +638,7 @@ var TweetfilterPrototype = function() {
         this.twttrajaxevent(event, request, settings); 
       }).bind(this)); //watch for ajax requests
       
-      twttr.$win.bind("resize tf.resizepane", (function() {
+      this.bind("resizepane", (function() {
         var cp = twttr.app.currentPage();
         var $detailsPane = cp.$find("div.details-pane:has(.inner-pane.active)"),
             $pageOuter = $("#page-outer"),
@@ -647,9 +654,12 @@ var TweetfilterPrototype = function() {
             'div.details-pane .pane-components { height: '+dpcHeight+'px !important; }');
         }           
       }).bind(this));
-      twttr.util.lazyBind(window, 'resize', function() {
-        $(window).trigger('tf.resizepane');
-      });
+      twttr.$win.bind('resize', (function() {
+        this.trigger('resizepane');
+      }).bind(this));
+      twttr.util.lazyBind(window, 'resize', (function() {
+        this.trigger('resizepane');
+      }).bind(this));
       this.createwidget();
       this.loadsettings();
       this.bind('routeswitched', this.routeswitched.bind(this));
@@ -684,10 +694,6 @@ var TweetfilterPrototype = function() {
       this.status.scrollsinceid = false;
       this.stream.newitemsloaded = false;
     }
-    if (this.getoption('clear-stream-cache') && this.sm.streams.hasOwnProperty(this.stream.key)) {
-      if (this.stream.previouskey) delete this.sm.streams[this.stream.previouskey];
-      delete this.sm.streams[this.stream.key];
-    }
     this.widget.toggleClass('userstream', this.stream.isusers())
     this.widget.toggleClass('tweetstream', this.stream.istweets())
     
@@ -705,8 +711,7 @@ var TweetfilterPrototype = function() {
   
   //handler for routeswitched event. happens just after the location changed, page and stream may still be loading
   Tweetfilter.prototype.routeswitched = function() {
-    
-    this.setcss('filter', '');
+    this.setcss('filter', '.main-content div.stream-items > div.stream-item { visibility:hidden; }'); //remove flicker after switch
     this.setcss('friends', '');
     $('#tf-stream-title').html(_("Please wait\u2026"));
     $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
@@ -714,7 +719,8 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.unknownlocation = function() {
-
+     this.setcss('filter', '');
+     this.setcss('friends', '');
   };
   
   Tweetfilter.prototype.checkrequirements = function() {
@@ -736,6 +742,8 @@ var TweetfilterPrototype = function() {
     this.enableoption(['skip-mentionsme'], !filterdisabled && !exclusivemode && this.stream.istweets() && !(this.stream.ismentions() && this.options['skip-mentionsme']));
     this.enableoption(['show-friends'], !this.friends.loading && (this.stream.istweets() || this.stream.isusers()) && !this.stream.ismytweets());
     this.enableoption(['skip-me'], !filterdisabled && !exclusivemode && this.stream.istweets() && !this.stream.ismytweets());
+    this.enableoption(['hide-last'], this._page === 'Home');
+    this.enableoption(['expand-last'], this._page === 'Home' && !this.options['hide-last']);
     this.enableoption(['add-selection'], !filterdisabled && this.stream.istweets() );
     this.enableoption(['highlight-me'], this.stream.istweets() && !this.stream.ismytweets());
     this.enableoption(['highlight-mentionsme'], this.stream.istweets() && !this.stream.ismentions());
@@ -1130,6 +1138,7 @@ var TweetfilterPrototype = function() {
       /* deeper */
       /* options changing the global layout */
       case 'hide-topbar':   /* auto-hide top bar */
+      case 'hide-last':   /* hide last tweet */
       case 'expand-last':   /* show full last tweet */
       case 'hide-question':     /* hide "what's happening?" */
       case 'hide-tweetbox':     /* hide main tweet box */
@@ -1266,23 +1275,23 @@ var TweetfilterPrototype = function() {
     }
     return false; 
   };
-  
+      
   Tweetfilter.prototype.gettimezone = function() {
     var d = new Date(), jan = new Date(d.getFullYear(),0,1), jul = new Date(d.getFullYear(),6,1), 
         stdoffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
     return {
       dst: +(d.getTimezoneOffset() < stdoffset) * 3600000, //daylight saving time, in ms
-      stdoffset: stdoffset * 3600000, //standardoffset: discrepancy between time in jan and jul
-      offset: d.getTimezoneOffset() * 3600000 //current timezone offset, in ms (=gmt + dst) - see https://github.com/Tweetfilter/tweetfilter.github.com/issues/7
+      stdoffset: stdoffset * 60000, //standardoffset: maximal discrepancy from gmt
+      offset: d.getTimezoneOffset() * 60000 //current timezone offset, in ms (=gmt + dst) - see https://github.com/Tweetfilter/tweetfilter.github.com/issues/7
     };
-  }; 
-  
+  };     
+    
   Tweetfilter.prototype.getlocaldate = function(utc_str, utc_offset, timezone) {
-    if (typeof utc_offset !== 'number') {
+	if (typeof utc_offset !== 'number') {
       return {time: '', timezone: ''};
     }
     var utc_date = new Date(utc_str),
-        local_date = new Date(utc_date.getTime() + utc_offset * 1000 + this.timezone.offset * 3600000),
+        local_date = new Date(utc_date.getTime() + utc_offset*1000 - this.timezone.dst),
         gmt = (utc_offset / 3600);
     return {
       time: ('00'+local_date.getHours()).substr(-2)+':'+('00'+local_date.getMinutes()).substr(-2),
@@ -2212,15 +2221,27 @@ var TweetfilterPrototype = function() {
   };
 
   Tweetfilter.prototype.tweetclicklink = function(e) {
-    var target = this.getoption('expand-link-targets') && e.target.getAttribute('data-longurl') ?
-      e.target.getAttribute('data-longurl') : e.target.getAttribute('href');
-    if (target.indexOf('://')===-1) {  //workaround for twitter behaviour cutting off protocol from link
-      target = 'http://'+target;
+    var href = e.target.getAttribute('href'), 
+        expanded = e.target.getAttribute('data-longurl'),
+        target = href;
+    if (this.getoption('expand-link-targets')) {
+      if (expanded && expanded.indexOf('\u2026')===-1) {
+        target = expanded;
+      }
+      if (target.indexOf('://')===-1) {  //workaround for twitter behaviour cutting off protocol from link
+        target = 'http://'+target;
+      }
     }
     window.open(target);
     return false;
   };
-  
+
+  Tweetfilter.prototype.tweethovermedia = function(e) {
+   var image = $(this).find('img').eq(0);
+   
+    
+  }
+
   Tweetfilter.prototype.tweetclickhashtag = function(e) {
     if (e.which === 1) {
       if (e.type === 'mousedown') {
@@ -2571,22 +2592,22 @@ var TweetfilterPrototype = function() {
     }
     var showexpanded = this.getoption('expand-links');
     var links = $('div.stream-item[id] a.twitter-timeline-link[title]', cs.$node), shownurl, shorturl, expandedurl, titleurl, checktweets=[];
-    walklinks: for (var l=0,llen=links.length,link;l<llen && (link=links.eq(l));l++) {
-      if (!link.is('[data-shorturl]')) {
+    for (var l=0,llen=links.length,link;l<llen && (link=links.eq(l));l++) {
+      shorturl = link.attr('data-shorturl') || '';
+      if (!shorturl) {
         shorturl = link.attr('href');
         link.attr('data-shorturl', shorturl);
-      } else shorturl = link.attr('data-shorturl');
+      } 
       shownurl = link.html().replace(/<\S[^><]*>/g, ''); //currently visible url shown in tweet, clean html from searches
       expandedurl = link.attr('data-longurl') || ''; //if set, its the last expanded link
-      titleurl = link.attr('title').replace(/\.([a-zA-Z0-9]{2,4})\/$/, '.$1').replace(/\\\?/, '?'); //this is always the latest expanded link. funny twitter adds a slash to EVERY expanded url, we cut it off if extension found (.html, .php etc)
+      titleurl = link.attr('title').replace(/\.([a-zA-Z0-9]{2,4})\/$/, '.$1').replace(/\/\?/, '?'); //this is always the latest expanded link. funny twitter adds a slash to EVERY expanded url, we cut it off if extension found (.html, .php etc)
       if ((!showexpanded && shownurl !== shorturl) || (showexpanded && shownurl !== titleurl)) { //multiple shortened links
         if (titleurl.indexOf('#') === -1) { //try to detect if link expander chopped off the hash
-          if (shownurl.indexOf('#') > -1) { //shown url has a hash, but expanded hasn't
-            titleurl = shownurl;
-          } else if (expandedurl.indexOf('#') > -1) { //(last) expanded url has a hash, but titleurl hasn't
+          if (expandedurl.indexOf('#') > -1) { //(last) expanded url has a hash, but titleurl hasn't
             titleurl = expandedurl;
+          } else if (shownurl.indexOf('#') > -1) { //shown url has a hash, but expanded hasn't
+            titleurl = shownurl;
           }
-          
         }
         if (showexpanded) {
           link.html(titleurl);
@@ -2638,7 +2659,7 @@ var TweetfilterPrototype = function() {
   //create Tweetfilter dashboard component
   Tweetfilter.prototype.createwishboard = function(target) {
     
-    //return; //unfinished feature, disabled
+    if (!this._betafeatures) return; //unfinished feature, disabled
     
     this.wishboard = $([
         '<div id="tf-wishboard" class="component tf wishboard">',
@@ -2662,19 +2683,22 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.refreshwishboard = function() {
-    twttr.API.Status.search('@'+(this._stream.params.screenName || this.user.name), function(tweets, response) {
+    var username = (this._stream.params.screenName || this.user.name);
+    twttr.API.Status.search('@'+username, function(tweets, response) {
     var tweet, feedhtml = ['<ul class="tf-tweets">'];
       tweets.each(function(tweet) {
-        feedhtml.push('<li data-item-id="'+tweet.id+'"'+(tweet.inReplyToStatusId ? ' data-reply-id="'+tweet.inReplyToStatusId+'"' : '')+'>'+
-                       /* '<div class="tf-tweet-pic">'+
-                          '<a target="_blank" href="https://twitter.com/#!/'+tweet.user.screenName+'" title="'+tweet.user.screenName+'">'+
-                          '<img width="36" height="36" src="'+tweet.user.profileImageUrl+'" /></a>'+
-                        '</div>'+ */
-                        '<div class="tf-tweet-msg">'+
-                          '<a class="from" href="https://twitter.com/'+tweet.user.screenName+'"><b>'+tweet.user.screenName+'</b></a>: '+
-                          twttr.util.linkify(tweet.text)+' <span class="time">'+twttr.helpers.prettyTime(tweet.createdAt)+'</span>'+
-                        '</div>'+
-                      '</li>');
+        if (tweet.text.indexOf('RT')!==0 && !tweet.isRetweet)  {
+          feedhtml.push('<li data-item-id="'+tweet.id+'"'+(tweet.inReplyToStatusId ? ' data-reply-id="'+tweet.inReplyToStatusId+'"' : '')+'>'+
+                         /* '<div class="tf-tweet-pic">'+
+                            '<a target="_blank" href="https://twitter.com/#!/'+tweet.user.screenName+'" title="'+tweet.user.screenName+'">'+
+                            '<img width="36" height="36" src="'+tweet.user.profileImageUrl+'" /></a>'+
+                          '</div>'+ */
+                          '<div class="tf-tweet-msg">'+
+                            '<a class="from" href="https://twitter.com/'+tweet.user.screenName+'"><b>'+tweet.user.screenName+'</b></a>: '+
+                            twttr.util.linkify(tweet.text)+' <span class="time">'+twttr.helpers.prettyTime(tweet.createdAt)+'</span>'+
+                          '</div>'+
+                        '</li>');
+        }
       });
       feedhtml.push("</ul>");
       var target = $('#tf-wishboard div.tf-wishtab-mentions');
@@ -2858,6 +2882,8 @@ var TweetfilterPrototype = function() {
               '<li><a data-option="hide-promoted-content" title="hide promoted trends, who to follow"><b></b>hide promoted content</a></li>',
               '<li><a data-option="hide-invite"><b></b>hide invite friends</a></li>',
               '<li class="disabled"><a data-option="minify-menu"><b></b>minify menu</a></li>',
+              '<li class="disabled"><a data-option="hide-last"><b></b>hide last tweet</a></li>',
+              '<li class="disabled"><a data-option="expand-last"><b></b>expand last tweet</a></li>',
             '</ul>',
           '</div>',
           '<div data-tab="layout">',
@@ -3144,8 +3170,8 @@ var TweetfilterPrototype = function() {
       '#tf-compact-activities ul.user-stats > li { padding: 0 9px; }',
       'body.tf-compact-activities div.dashboard .component.tf.activities, ',
       'body.tf-compact-activities div.dashboard .component.tf.stats, ',
-      'body.tf-compact-activities div.dashboard .component.tf.following, ',
-      'body.tf-compact-activities div.dashboard .component.tf.latest .tweet-activity { display:none; }',
+      'body.tf-compact-activities div.dashboard .component.tf.following { display:none; }',
+      'body.tf-hide-last div.dashboard .component.tf.latest .tweet-activity { display:none; }',
       'body.tf-compact-activities #tf-compact-activities { display:block; }',
       'body.tf-hide-topbar { background-position: top left !important; }',
       'body.tf-hide-topbar div#top-stuff { top: -30px; height:40px; }',
@@ -3171,6 +3197,11 @@ var TweetfilterPrototype = function() {
       'body.tf-minify-menu div.footer.inline-list li:nth-child(5),',
       'body.tf-minify-menu div.footer.inline-list li:nth-child(9),',
       'body.tf-minify-menu div.footer.inline-list li:nth-child(15) { display:inline }',
+      'body.tf-expand-last div.latest-tweet .tweet-row { height: 4em; }',
+      'body.tf-expand-last div.latest-tweet.ellipsify-container > span.content { height:auto; white-space:wrap; }',
+      'body.tf-expand-last div.latest-tweet .ellip { display:none; }',
+      'body.tf-expand-last div.latest-tweet .tweet-row { height:auto; white-space:wrap; }',
+      'body.tf-expand-last .ellipsify-container > span.content { overflow:visible; white-space:normal; display:block; }',
       'body.tf-hide-question div.tweet-box-title { display:none; }',
       'body.tf-hide-tweetbox div.main-tweet-box { display:none; }',
       'body.tf-hide-tweetbox div.page-header { padding-top:4px; }',
@@ -3698,7 +3729,6 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.resetfiltercss = function() {
-    
   };
   
   Tweetfilter.prototype.refreshfriendscss = function() {
