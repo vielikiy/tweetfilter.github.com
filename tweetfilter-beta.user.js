@@ -433,18 +433,6 @@ var TweetfilterPrototype = function() {
             this.sm.bind('newItemsCountChanged switchingToStream', this.twttreventhandler.bind(this));
             this.sm._tfbound = true;
           }
-          if (!this.sm.$streamContainer.data('_tfbound')) {
-            this.sm.$streamContainer.delegate('div.stream-item', 'click', (function() {return this.tweetclick();}).bind(this))
-                         .delegate('a.tf', 'mousedown click', (function(e) {return this.tweetactionsclick(e);}).bind(this))
-                         .delegate('span.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
-                         .delegate('div.tweet-text', 'mousedown', (function(e) {return this.tweettextmousedown(e);}).bind(this))
-                         .delegate('div.tweet-text', 'mouseup click', (function(e) {return this.tweettextmouseup(e);}).bind(this))
-                         .delegate('span.tf-rtc', 'click', (function(e) {return this.tweetclickretweeted(e);}).bind(this))
-                         .delegate('ul.tf-menu', 'mouseleave', (function(e) {this.filtermenuleave(e);}).bind(this))
-                         .delegate('a.twitter-timeline-link', 'click', (function(e) {return this.tweetclicklink(e);}).bind(this))
-                         .delegate('a.twitter-hashtag', 'mousedown click', (function(e) {return this.tweetclickhashtag(e);}).bind(this))
-                         .data('_tfbound',1);
-          }
           if ((this.cs = this.sm.getCurrent())) {
             if (this._stream.key !== this.cs._cacheKey) { //has stream switched
               this._isprotected = this.cs.params.hasOwnProperty('canViewUser') ? !this.cs.params.canViewUser : false; 
@@ -467,6 +455,18 @@ var TweetfilterPrototype = function() {
                 if (!this.cs._tfbound) { //in uncached streams, the property will be deleted after page switch
                   this.cs.bind('didTweet doneLoadingMore streamEnd reloadCurrentStream', this.twttreventhandler.bind(this));
                   this.cs._tfbound = true;
+                }
+                if (!this.cs.$node.data('_tfbound')) {
+                  this.cs.$node.delegate('div.stream-item', 'click', (function() {return this.tweetclick();}).bind(this))
+                               .delegate('a.tf', 'mousedown click', (function(e) {return this.tweetactionsclick(e);}).bind(this))
+                               .delegate('span.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
+                               .delegate('div.tweet-text', 'mousedown', (function(e) {return this.tweettextmousedown(e);}).bind(this))
+                               .delegate('div.tweet-text', 'mouseup click', (function(e) {return this.tweettextmouseup(e);}).bind(this))
+                               .delegate('span.tf-rtc', 'click', (function(e) {return this.tweetclickretweeted(e);}).bind(this))
+                               .delegate('ul.tf-menu', 'mouseleave', (function(e) {this.filtermenuleave(e);}).bind(this))
+                               .delegate('a.twitter-timeline-link', 'click', (function(e) {return this.tweetclicklink(e);}).bind(this))
+                               .delegate('a.twitter-hashtag', 'mousedown click', (function(e) {return this.tweetclickhashtag(e);}).bind(this))
+                               .data('_tfbound',1);
                 }
                 this.clearstreamcache();
                 this._stream.key = this.cs._cacheKey;
@@ -2924,7 +2924,7 @@ var TweetfilterPrototype = function() {
               '<li><a data-option="scroll-lock" title="lock current scroll position when loading new tweets"><b></b>lock scroll position</a></li>',
               '<li><a data-option="search-realtime" title="default all searches (top, hashtag, saved) to show &quot;all tweets&quot;"><b></b>default search to "all"</a></li>',
               '<li><a data-option="copy-expanded" title="do not shorten links when copying text"><b></b>disable copy link shortener</a></li>',
-              '<li><a data-option="expand-tweeplus" title="show long version of tweets posted through tweeplus.com"><b></b>expand twee+ tweets</a></li>',
+              '<li><a data-option="expand-tweeplus" title="show long version of tweeplus.com posted Tweets in dashboard"><b></b>expand twee+ tweets</a></li>',
               '<li><a title="drag to your favorites bar" id="tf-export-settings">Tweetfilter settings</a></li>',
             '</ul>',
             '<div class="about">',
@@ -3187,6 +3187,7 @@ var TweetfilterPrototype = function() {
       'body.tf-show-via .main-content .stream-item .tweet-source { display:inline; }',
       '#tf-compact-activities { display:none; }',
       '#tf-compact-activities ul.user-stats > li { padding: 0 9px; }',
+      '#tf-compact-activities ul.user-stats li:first-child { padding-left:0 !important; }',
       'body.tf-compact-activities div.dashboard .component.tf.activities, ',
       'body.tf-compact-activities div.dashboard .component.tf.stats, ',
       'body.tf-compact-activities div.dashboard .component.tf.following { display:none; }',
