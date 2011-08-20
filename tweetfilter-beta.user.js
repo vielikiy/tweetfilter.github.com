@@ -4053,7 +4053,7 @@ if (window.top === window.self && //don't run in twitter's helper iframes
     var tfscripttext = TweetfilterPrototype.toString(); //assign the whole prototype code to script
     tfscript.text = tfscripttext.substring(tfscripttext.indexOf('function Tweetfilter'), tfscripttext.lastIndexOf('}')); //unwrap the function
     document.body.appendChild(tfscript); //inject the script 
-  } else { //currently not on twitter.com
+  } else if (window.location.toString().indexOf('://twitter.com') === -1) { //currently not on twitter.com
     if (confirm("Tweetfilter only runs on twitter.com.\nDo you want to go there now?")) {
       window.location.href='https://twitter.com/'; 
     }
