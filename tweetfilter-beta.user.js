@@ -426,6 +426,8 @@ var TweetfilterPrototype = function() {
           if (!this.sm._tfbound) {
             this.sm.bind('newItemsCountChanged switchingToStream', this.twttreventhandler.bind(this));
             this.sm._tfbound = true;
+          }
+          if (!this.sm.$streamContainer.data('_tfbound')) {
             this.sm.$streamContainer.delegate('div.stream-item', 'click', (function() {return this.tweetclick();}).bind(this))
                          .delegate('a.tf', 'mousedown click', (function(e) {return this.tweetactionsclick(e);}).bind(this))
                          .delegate('span.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
@@ -434,12 +436,13 @@ var TweetfilterPrototype = function() {
                          .delegate('span.tf-rtc', 'click', (function(e) {return this.tweetclickretweeted(e);}).bind(this))
                          .delegate('ul.tf-menu', 'mouseleave', (function(e) {this.filtermenuleave(e);}).bind(this))
                          .delegate('a.twitter-timeline-link', 'click', (function(e) {return this.tweetclicklink(e);}).bind(this))
-                         .delegate('a.twitter-hashtag', 'mousedown click', (function(e) {return this.tweetclickhashtag(e);}).bind(this));
+                         .delegate('a.twitter-hashtag', 'mousedown click', (function(e) {return this.tweetclickhashtag(e);}).bind(this))
+                         .data('_tfbound',1);
           }
           if ((this.cs = this.sm.getCurrent())) {
             if (this._stream.key !== this.cs._cacheKey) { //has stream switched
               this._isprotected = this.cs.params.hasOwnProperty('canViewUser') ? !this.cs.params.canViewUser : false; 
-              if (this.cs.items && this.cs.items.length || (this._isprotected || this.cs.$find('.no-members,.stream-end').length)) {
+              if (this.cs.items && this.cs.items.length && !$(".stream-loading", this.sm.$streamContainer).length || (this._isprotected || this.cs.$find('.no-members,.stream-end').length)) {
                 //check if it's the expected stream
                 var namespace = decodeURIComponent(this.cs._cacheKey);
                 if (namespace.indexOf('{')>-1) namespace = namespace.substr(0,namespace.indexOf('{'));
@@ -456,7 +459,7 @@ var TweetfilterPrototype = function() {
                   this._stream.params.mode = this.cs.params.mode;
                 }
                 if (!this.cs._tfbound) { //in uncached streams, the property will be deleted after page switch
-                  this.cs.bind('didTweet doneLoadingMore streamEnd', this.twttreventhandler.bind(this));
+                  this.cs.bind('didTweet doneLoadingMore streamEnd reloadCurrentStream', this.twttreventhandler.bind(this));
                   this.cs._tfbound = true;
                 }
                 this.clearstreamcache();
@@ -546,10 +549,11 @@ var TweetfilterPrototype = function() {
           this.trigger('pageunknown', {route:a});
         }
       break;
+      case 'reloadCurrentStream':
+        
       case 'switchingToStream': //for stream changes that don't change the route, like switch from "All" to "Top" in saved search.
         //we are only concerned about changing "mode" param while namespace remains the same, we assume the stream namespace itself is correctly switched in routefollowed
-       if (a._cacheKey !== this._stream.key && a.params.mode && (this._stream.params.mode && this._stream.params.mode !== a.params.mode)) { //only if stream has changed
-         //check if namespace is still the same, if it is but mode is not, we have stream switch without route switch
+       if (a.params.mode) { //only if mode is set
          var streamkey = decodeURIComponent(a._cacheKey);
          var namespace = streamkey.substr(0, streamkey.indexOf('{'));
          var params = JSON.parse(streamkey.substr(streamkey.indexOf('{')));
@@ -719,8 +723,7 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.unknownlocation = function() {
-     this.setcss('filter', '');
-     this.setcss('friends', '');
+     this.resetfiltercss();
   };
   
   Tweetfilter.prototype.checkrequirements = function() {
@@ -1044,13 +1047,7 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.getoption = function(option) {
-    var result = this.options[option] && !~this.disabledoptions.indexOf(option);
-    switch(option) {
-      case 'filter-replies': return result && !(this.stream.ismentions() && this.options['skip-mentionsme']); break;
-      case 'filter-retweets': return result && !this.stream.isretweets(); break;
-      case 'filter-links': return result && !this.stream.islinks(); break;
-      default: return result;  
-    }
+    return this.options[option] && !~this.disabledoptions.indexOf(option);
   };
 
   //set an option
@@ -1654,7 +1651,7 @@ var TweetfilterPrototype = function() {
           if (packet) { 
             for (i=0;i<3;i++) {
               uv = i > 1 ? 4 : i+1; //1=following,2=follower,4=mutual
-              if (packet[i]) { //friend (following)
+              if (packet[i]) { 
                 uids = packet[i].split(',');  
                 for (u=0,umax=uids.length;u<umax;u++) this.friends.fids[this.decodenum(uids[u])] = uv; 
               }
@@ -3696,6 +3693,7 @@ var TweetfilterPrototype = function() {
         if (this.getoption('hide-promoted-tweets') && this.cs.filter.promoted.length) {
           style.push('#t'+this.cs.filter.promoted.join(',#t')+' { '+hidecss+' }');
         }
+      } else {
       }
       /* highlight replies to me (overwrites excludes, if colliding) */
       if (this.getoption('highlight-mentionsme') && !this.stream.ismentions() && this.cs.filter.mentionsme.length) { //highlight tweets mentionining current user
@@ -3721,6 +3719,7 @@ var TweetfilterPrototype = function() {
         this.cs.getMoreOldItems();
       }
     } else {
+
     }
     if (!this.stream.isready()) {
       this.poll('refreshcss', ['filter']); //repoll 
@@ -3729,6 +3728,8 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.resetfiltercss = function() {
+    this.setcss('filter', '');
+    this.setcss('friends', '');
   };
   
   Tweetfilter.prototype.refreshfriendscss = function() {
