@@ -1,19 +1,25 @@
 // ==UserScript==
-// @name           Tweetfilter
-// @namespace      Chilla42o
-// @description    Tweetfilter is a highly customizable timeline filter for the twitter.com web client
-// @version        2.0.5
-// @include        http://twitter.com/
-// @include        https://twitter.com/
-// @include        http://twitter.com/#*
-// @include        https://twitter.com/#*
-// @match          http://twitter.com/
-// @match          https://twitter.com/
-// @match          http://twitter.com/#*
-// @match          https://twitter.com/#*
+// @name             Tweetfilter
+// @version          2.0.5
+// @namespace        Chilla42o
+// @description      Tweetfilter is a highly customizable timeline filter for the twitter.com web client
+// @updateURL        https://userscripts.org/scripts/source/49905.meta.js
+// @homepageURL      http://tweetfilter.org
+// @supportURL       http://github.com/Tweetfilter/tweetfilter.github.com/issues 
+// @contributionURL  http://flattr.com/thing/333626/Tweetfilter
+// @domain           twitter.com 
+// @include          http://twitter.com/
+// @include          https://twitter.com/
+// @include          http://twitter.com/#*
+// @include          https://twitter.com/#*
+// @match            http://twitter.com/
+// @match            https://twitter.com/
+// @match            http://twitter.com/#*
+// @match            https://twitter.com/#*
+// @noframes
 // ==/UserScript==
 
-// Copyright (c) 2009-2011 Chilla42o <tweetfilterjs@gmail.com>
+// Copyright (c) 2011 Chilla42o <tweetfilterjs@gmail.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,6 +27,12 @@
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
@@ -38,7 +50,7 @@ var TweetfilterPrototype = function() {
     
     this.version = '2.0.5'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-    this._betafeatures = true; //enable/disable (unfinished) beata features
+    this._betafeatures = false; //enable/disable (unfinished) beata features
     
     // internal route, page and stream declarations
     var pagemap = { //pagename => route.name
@@ -2499,7 +2511,7 @@ var TweetfilterPrototype = function() {
               break;
           }
         }
-        break;
+        return true;
     }
     return false;
   };
@@ -2594,19 +2606,30 @@ var TweetfilterPrototype = function() {
 
   //walk through links, expand or collapse
   Tweetfilter.prototype.parselinks = function() {
+    if (!this.status.initialized || !this.stream.isready()) {
+      return false; //repoll
+    }
+    if (!this.stream.isfiltered()) {
+      return true; //stop polling in non tweet/user streams
+    }
     if (!this.status.initialized || !this.stream.isfiltered()) {
       return false;
     }
     var showexpanded = this.getoption('expand-links');
-    var links = $('a.twitter-timeline-link[data-expanded-url]', this.cs.$node).add('a.twitter-timeline-link[data-expanded-url]', this.cp.$detailsPaneOuter),
+    var links = $('a.twitter-timeline-link[data-expanded-url]', this.cs.$node) //links in timeline
+                .add('a.twitter-timeline-link[data-expanded-url]', this.cp.$detailsPaneOuter), //links in open dashboard pane
         displayurl, shorturl, longurl, expandedurl, checktweets=[];
     for (var l=0,llen=links.length,link;l<llen && (link=links.eq(l));l++) {
-      shorturl = link.attr('data-shorturl') || '';
+      shorturl = link.data('data-shorturl') || '';
       if (!shorturl) {
         shorturl = link.attr('href');
         link.attr('data-shorturl', shorturl);
       } 
-      displayurl = link.html().replace(/<\S[^><]*>/g, ''); //currently visible url shown in tweet, clean html from searches
+      displayurl = link.data('displayurl') || '';
+      if (!displayurl) {
+        displayurl = link.html().replace(/<\S[^><]*>/g, ''); //currently visible url shown in tweet, clean html from searches
+        link.data('displayurl', displayurl);
+      }
       longurl = link.attr('data-longurl') || ''; //if set, its the last expanded link
       expandedurl = link.attr('data-expanded-url').replace(/\.([a-zA-Z0-9]{2,4})\/$/, '.$1').replace(/\/\?/, '?'); //this is always the latest expanded link. funny twitter adds a slash to EVERY expanded url, we cut it off if extension found (.html, .php etc)
       if ((!showexpanded && displayurl !== shorturl) || (showexpanded && displayurl !== expandedurl)) { //multiple shortened links
@@ -2618,7 +2641,12 @@ var TweetfilterPrototype = function() {
           }
         }
         if (showexpanded) {
-          link.html(expandedurl);
+          link.data('displayurl', expandedurl);
+          if (expandedurl.indexOf('http://tweeplus.com/#')===0 && expandedurl.length > 21) {
+            link.html(expandedurl.substr(7, 14)+'\u2026');
+          } else {
+            link.html(expandedurl);
+          }
         } else {
           link.html(shorturl);
         }
@@ -2643,14 +2671,18 @@ var TweetfilterPrototype = function() {
           }
         }
         link.attr('data-longurl', expandedurl);
-        if (expandedurl.indexOf('http://tweeplus.com/#')===0 && expandedurl.indexOf('\u2026')===-1 && this.getoption('expand-tweeplus')) {
+        if (expandedurl.indexOf('http://tweeplus.com/#')===0 && expandedurl.length > 21 && expandedurl.indexOf('\u2026')===-1 && this.getoption('expand-tweeplus')) {
           try {
             var textcontainer = link.closest('div.tweet-text'), longtext = decodeURIComponent(expandedurl.split('#')[1]);
-            if (id > -1) {
-              this.cs.filter.items[id].text += "\n"+longtext; //only add the longtext
-            } 
-            if (textcontainer.hasClass('tweet-text-large')) {
-              textcontainer.html(twttr.util.linkify(longtext).replace(/\n/g,'<br />'));
+            if (longtext) {
+              if (id > -1) {
+                this.cs.filter.items[id].text += "\n"+longtext; //only add the longtext
+              } 
+              if (textcontainer.hasClass('tweet-text-large')) {
+                textcontainer.html(twttr.util.linkify(longtext).replace(/\n/g,'<br />'));
+              }
+            } else  if (id > -1) {
+              this.cs.filter.items[id].text += "\n"+expandedurl.toLowerCase();
             }
           } catch(e) {
           }
@@ -2717,9 +2749,7 @@ var TweetfilterPrototype = function() {
       });
       feedhtml.push("</ul>");
       var target = $('#tf-wishboard div.tf-wishtab-mentions');
-      
       $('#tf-wishboard div.tf-wishtab-mentions').html(feedhtml.join("\n"));
-      $('')
     });    
   };
   
@@ -2924,12 +2954,12 @@ var TweetfilterPrototype = function() {
               '<li><a data-option="scroll-lock" title="lock current scroll position when loading new tweets"><b></b>lock scroll position</a></li>',
               '<li><a data-option="search-realtime" title="default all searches (top, hashtag, saved) to show &quot;all tweets&quot;"><b></b>default search to "all"</a></li>',
               '<li><a data-option="copy-expanded" title="do not shorten links when copying text"><b></b>disable copy link shortener</a></li>',
-              '<li><a data-option="expand-tweeplus" title="show long version of tweeplus.com posted Tweets in dashboard"><b></b>expand twee+ tweets</a></li>',
+              '<li><a data-option="expand-tweeplus" title="show long version of tweeplus.com posted Tweets in detail pane"><b></b>expand twee+ tweets</a></li>',
               '<li><a title="drag to your favorites bar" id="tf-export-settings">Tweetfilter settings</a></li>',
             '</ul>',
             '<div class="about">',
               '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-08-20</span></li>',
+                '<li class="version">Tweetfilter '+this.version+' <span>11-08-21</span></li>',
                 '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                 '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                 '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
