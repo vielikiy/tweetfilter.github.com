@@ -16,7 +16,7 @@
 // @match            https://twitter.com/
 // @match            http://twitter.com/#*
 // @match            https://twitter.com/#*
-// @noframes
+// @noframes         1
 // ==/UserScript==
 
 // Copyright (c) 2009-2011 Chilla42o <tweetfilterjs@gmail.com>
