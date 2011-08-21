@@ -2235,46 +2235,36 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.checknewmessages = function() {
     if (this.getoption('alert-message') || this.getoption('alert-sound-message')) {
-      if (!this.mm) { //create own instance of messagemanager
-        try {
-          this.mm = new twttr.MessageManager();
-        } catch(e) {
-          return false;
-        }
-        this.mm.setupContinuousPoll(); //use integrated poll function (90 sec interval)
-        this.mm.bind('messagesArrived', (function(e, messages) {
-          var newmessagescount = messages.array.length, newsinceid = messages.array[0].id;
-          if (newmessagescount && this.status.messagesinceid !== newsinceid) {
-            newmessagescount = 0;
-            for (var m=0,mlen=messages.array.length,message;m<mlen && (message=messages.array[m]);m++) {
+      twttr.currentUser.receivedMessages({
+        since_id: this.status.messagesinceid ? this.status.messagesinceid : -1,
+        cacheOptions: {skipOverwrite:false},
+        success: twttr.bind(this, function(data, result) {
+          if (result.response.length) {
+            if (this.status.messagesinceid === -1) {
+              this.status.messagesinceid = result.response[0].id;
+              this.savesettings();
+              return;
+            }
+            var newsinceid = 0, newmessagescount = 0;
+            for (var m=0,mlen=result.response.length,message;m<mlen && (message=result.response[m]);m++) {
               if (twttr.util.natcompare(message.id, this.status.messagesinceid) > 0) {
                 if (twttr.util.natcompare(message.id, newsinceid) > 0) newsinceid = message.id;
                 newmessagescount++;
               }
             }
-            if (this.status.messagesinceid === -1) {
-              this.status.messagesinceid = newsinceid;
-              this.savesettings();
-              return true;
-            } 
-            if (newmessagescount) {
-              this.status.messagesinceid = newsinceid;
-              if (this.getoption('alert-sound-message')) {
-                this.playsound();
-              }
-              if (this.getoption('alert-message')) {
-                this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
-              }
-            } else {
+            this.status.messagesinceid = newsinceid;
+            if (this.options['alert-message']) {
+              this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
+            }
+            if (this.options['alert-sound-message']) {
+              this.playsound();
             }
             this.savesettings();
-            return true;
-          } else {
-            return false;
+          } else if (this.status.messagesinceid === -1) { //user has 0 messages received
+            this.status.messagesinceid = 0;
           }
-          this.poll('refreshmessages', 3);                                                                                          
-        }).bind(this));
-      }
+        })
+      });
       if (!this.timeids.checknewmessages || this.timeids.checknewmessages === -1) {
         this.timeids.checknewmessages = window.setInterval((function() {
           this.poll('checknewmessages');
@@ -3019,7 +3009,7 @@ var TweetfilterPrototype = function() {
             '</ul>',
             '<div class="about">',
               '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-08-21</span></li>',
+                '<li class="version">Tweetfilter '+this.version+' <span>11-08-22</span></li>',
                 '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                 '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                 '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -3884,7 +3874,6 @@ var TweetfilterPrototype = function() {
   
   //build css from filter settings, filters and/or options and set it
   Tweetfilter.prototype.refreshlayoutcss = function() { 
-                                                                                                    var f='refreshlayoutcss';
     var style = this.widgetcss();
     this.refreshcolors();
     style = style.replace(/@([a-z]+)\:([10]\.[0-9]+)/g, (function(match, color, alpha) {            //! alpha=1 is ignored, use 1.0
