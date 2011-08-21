@@ -248,8 +248,7 @@ var TweetfilterPrototype = function() {
       'expand-last': true,       /* expand last tweet on dashboard */
       'expand-links': false,    /* show expanded links */
       'expand-link-targets': false,    /* change links pointing to expanded url instead of shortened*/
-      'limit-link-size': false,    /* cut off expanded links after 142 chars */
-      'expand-tweeplus': false,    /* expand tweeplus shortened tweets */
+      'expand-tweeplus': true,    /* expand tweeplus shortened tweets in detail view */
       'small-links': false,     /* show small links */
       'highlight-me': false,      /* highlight what I wrote */
       'highlight-mentionsme':true, /* highlight replies to me */
@@ -800,7 +799,9 @@ var TweetfilterPrototype = function() {
                     this.polling.queued[event[e]].push(params[p]);
                   }
                 }
-                if (this.status.initialized) this._poll();
+                if (this.status.initialized) {
+                  window.setTimeout(this._poll.bind(this), 0);
+                }
                 break;
               }
               //not an params array, pass anything but false to the poll queue
@@ -1807,13 +1808,13 @@ var TweetfilterPrototype = function() {
               if (peoplecount > 42000 && !this.friends.expires) {
                 this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
               }
-              var h;
+              var h = 1; //default: refresh every hour
               if (peoplecount > 250000) { // 50-120 API calls (!), refresh only every 12h
                 h = 12;            
               } else if (peoplecount > 100000) {  //20-49 API calls, refresh every 4h
                 h = 4;
-              } else { //refresh every 1h
-                h = 1;
+              } else if (peoplecount > 50000) { //refresh every 1h
+                h = 2;
               }
               friends = {
                 userid: this.user.id,
@@ -1850,8 +1851,25 @@ var TweetfilterPrototype = function() {
 
 
   Tweetfilter.prototype.refreshfriends = function() {
-    
-    //this.poll('fetchfriends')
+    if (this.options['show-friends']) {
+      if (this.friends.loading) {
+        return true;
+      }
+      if (!this.friends.loading && this.friends.expires > 0 && this.friends.expires < (new Date()).getTime()) {
+        this.friends.loadedpacket = 0;
+        this.friends.fetchedpackets = 0;
+        this.friends.expires = -1;
+        this.poll('loadfriends');
+      } else {
+      }
+      if (!this.timeids.refreshfriends || this.timeids.refreshfriends === -1) {
+        this.timeids.refreshfriends = window.setInterval((function(e) {
+          this.poll('refreshfriends');
+        }).bind(this), 10*60*1000); //poll the check every 10mins, it will only load if the friend status is actually outdated (depending on the count of following/followers)
+      }
+    } else if (this.timeids.refreshfriends && this.timeids.refreshfriends !== -1) {
+      window.clearInterval([this.timeids.refreshfriends, this.timeids.refreshfriends=-1][0]);
+    }
     return true; //stop polling
   };
   
@@ -2717,13 +2735,12 @@ var TweetfilterPrototype = function() {
             itemid = this.cs.filter.items[id].tweetid;
           } else {
             itemid = item.attr('data-item-id');
-            if (!itemid) {
-              return false;
+            if (itemid) {
+              if (itemid.indexOf(':')) {
+                itemid = itemid.split(':')[0];
+              }
+              id = this.cs.filter.itemids[itemid]; 
             }
-            if (itemid.indexOf(':')) {
-              itemid = itemid.split(':')[0];
-            }
-            id = this.cs.filter.itemids[itemid]; 
           }
         }
         link.data('tf', linkdata);
