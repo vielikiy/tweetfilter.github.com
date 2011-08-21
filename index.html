@@ -649,7 +649,7 @@
         });
         var warning = '<span class="warning">Tweetfilter can\'t run in this browser, it failed the minimum requirements check. Please update to a current version or use a compatible browser.</span>';
         try {
-          if (!window.localStorage || !JSON || ~~[] !== 0) {
+          if (!window.localStorage || !JSON || ~~[] !== 0 || !Function.prototype.bind) {
             $('em#howtoinstall').before(warning);
           }
         } catch(e) {
