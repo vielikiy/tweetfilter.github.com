@@ -160,7 +160,7 @@ var TweetfilterPrototype = function() {
           case 'SuggestionCategoriesStream':
             return 'Who to follow: Interests'; 
           break;
-          case 'ContactImportServices': return 'Who to follow: Import contacts';break;
+          case 'ContactImportServices':return 'Who to follow: Import contacts';break;
         }
         return 'unknkown: '+this._stream.namespace;        
       }).bind(this),
@@ -195,7 +195,7 @@ var TweetfilterPrototype = function() {
       }).bind(this),
       status:false,
       isready: (function() {
-        return !this._isloading && this.cs && this._stream.key === this.cs._cacheKey;
+        return (this._stream.key === 'unknown') || (!this._isloading && this.cs && this._stream.key === this.cs._cacheKey);
       }).bind(this),
       setloading: (function() {
         if (this.stream.status !== 'loading') {
@@ -284,7 +284,7 @@ var TweetfilterPrototype = function() {
       },
       following: {
         path: 'div.following-activity-full'
-      },
+      }, 
       youbothfollow: {
         path: 'div.social-context > div.you-both-follow'
       },
@@ -536,12 +536,16 @@ var TweetfilterPrototype = function() {
       case 'routeFollowed': //a = route
         if (!this._routemap[a.name]) {  //get stream for route
           this.clearstreamcache();
-          this._stream.key = this._stream.namespace = ''; 
+          this._route = this._stream.key = this._stream.namespace = this._stream.itemtype = 'unknown'; 
           this._stream.params = {};
           this.trigger('routeunknown', {route: a});
           return;
         }
         this._stream.namespace = this._routemap[a.name];
+        if (!this._stream.namespace) {
+          this.trigger('streamunknown');
+          return;
+        }
         this._stream.params = {};
         var _route = '', streamparam, hasargs = false;
         for (var p in a.args) {
@@ -689,6 +693,7 @@ var TweetfilterPrototype = function() {
       this.bind('streamswitched', this.streamswitched.bind(this));
       this.bind('newitemsloaded', this.newitemsloaded.bind(this));
       this.bind('moreitemsloaded', this.moreitemsloaded.bind(this));
+      this.bind('pageunknown routeunknown streamunknown', this.unknownlocation.bind(this));
       this.twttreventhandler({type:'routeFollowed'}, twttr.router.getCurrentRoute()); //fire up first time      
       return true;
     } catch(e) {
@@ -706,10 +711,6 @@ var TweetfilterPrototype = function() {
     this.poll('parseitems');
   };
   
-  Tweetfilter.prototype.pageswitched = function() {
-    
-  };
-  
   Tweetfilter.prototype.streamswitched = function() {
     if (this.getoption('scroll-lock')) {
       this.status.scrollheight = 0;
@@ -722,9 +723,6 @@ var TweetfilterPrototype = function() {
     this.widget.toggleClass('hidden', !(this.stream.isusers() || this.stream.istweets()));
     this.polling.suspend = false;
     this.polling.busy = false;
-    if (this._stream.key === 'MessageStream') {
-      this.poll('refreshmessages', 5);      
-    }
     this.poll(['refreshoptions', 'parseitems', 'parselinks', 'refreshfiltercss', 'refreshlayoutcss',
                'refreshfriendscss', 'refreshfilterlist', 'setstreamtitle']);  
     this.poll('findcomponents', 3);
@@ -745,7 +743,8 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.unknownlocation = function() {
-     this.resetfiltercss();
+    this.resetfiltercss();
+    this.widget.toggleClass('hidden', true);
   };
   
   Tweetfilter.prototype.checkrequirements = function() {
@@ -879,7 +878,7 @@ var TweetfilterPrototype = function() {
         this.polling.timeoutid = -1;
         this._poll();
       }).bind(this), this._heartbeat);
-    }                                                                                                 };
+    }   };
   
   Tweetfilter.prototype.refreshcolors = function() {
     var user = twttr.profileUser && twttr.profileUser.screenName === this.cs.screenName ? twttr.profileUser : twttr.currentUser;
@@ -2234,20 +2233,6 @@ var TweetfilterPrototype = function() {
     return true; //always stop polling
   };
   
-  Tweetfilter.prototype.refreshmessages = function() { return true;
-    if (twttr.messageManager) {
-      try {
-        twttr.messageManager._fetchMessages((function() {
-          twttr.messageManager._sort();
-          //twttr.messageManager.trigger('messagesArrived');
-        }));
-        return true; //stop the poll
-      } catch(e) {
-      }
-    }
-    return false; //repeat n times until successful
-  };
-  
   Tweetfilter.prototype.checknewmessages = function() {
     if (this.getoption('alert-message') || this.getoption('alert-sound-message')) {
       if (!this.mm) { //create own instance of messagemanager
@@ -2748,7 +2733,7 @@ var TweetfilterPrototype = function() {
         if (linkdata.expandedurl.indexOf('http://tweeplus.com/#')===0 && linkdata.expandedurl.length > 21 && linkdata.expandedurl.indexOf('\u2026')===-1 && this.getoption('expand-tweeplus')) {
           try {
             var textcontainer = link.closest('div.tweet-text-large'), 
-                longtext = decodeURIComponent(linkdata.expandedurl.split('#')[1]);
+                longtext = decodeURIComponent(linkdata.expandedurl.split('#')[1].replace(/\+/g, ' '));
             if (longtext) {
               if (id > -1) {
                 this.cs.filter.items[id].text += "\n"+longtext.toLowerCase(); //only add the longtext, keep the original for filter
