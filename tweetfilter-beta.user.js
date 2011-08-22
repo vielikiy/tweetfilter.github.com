@@ -2251,21 +2251,24 @@ var TweetfilterPrototype = function() {
             this.timeids.fetchmessages = window.setInterval((function(){ 
               twttr.messageManager._fetchMessages(); 
             }), 60000)
+            twttr.messageManager._setupContinuousPoll =  twttr.messageManager.setupContinuousPoll;
+            twttr.messageManager.setupContinuousPoll = (function() { 
+              if (!this.getoption('alert-message') && !this.getoption('alert-sound-message')) {
+                twttr.messageManager._setupContinuousPoll();
+              }
+            }).bind(this);
           }
           twttr.messageManager.bind('messagesArrived', (function(e,messages) {
-            messages.sort(function (a, b) {
-              return twttr.natcompare(a.id, b.id)
-            })
-            var newsinceid = 0, newmessagescount = 0;
+            var newsinceid = this.status.messagesinceid, newmessagescount = 0;
             for (var m=0,mlen=messages.array.length,message;m<mlen && (message=messages.array[m]);m++) {
-              if (twttr.util.natcompare(message.id, this.status.messagesinceid) > 0) {
-                if (twttr.util.natcompare(message.id, newsinceid) > 0) newsinceid = message.id;
-                if (''+message.senderId !== this.user.id) {
-                  newmessagescount++;
+              if (''+message.senderId !== this.user.id && twttr.util.natcompare(message.id, this.status.messagesinceid) > 0) {
+                if (twttr.util.natcompare(newsinceid, message.id) > 0) {
+                   newsinceid = message.id; 
                 }
+                newmessagescount++;
               }
             }
-            this.messagesinceid = newsinceid;
+            this.status.messagesinceid = newsinceid;
             if (newmessagescount) {
               if (this.getoption('alert-message') && this._route !== 'messages') {
                 this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
@@ -2278,7 +2281,7 @@ var TweetfilterPrototype = function() {
           }).bind(this));
           twttr.messageManager._tfbound = 1;
           
-        }
+        } 
         if (this.timeids.checknewmessages && this.timeids.checknewmessages !== -1) { //triggered by event: cancel poll
           window.clearInterval([this.timeids.checknewmessages, this.timeids.checknewmessages=-1][0]);
         }        
@@ -3058,7 +3061,7 @@ var TweetfilterPrototype = function() {
             '</ul>',
             '<div class="about">',
               '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-08-22</span></li>',
+                '<li class="version">Tweetfilter '+this.version+' <span>11-08-23</span></li>',
                 '<li class="website"><a href="http://tweetfilter.org" target="_blank">Visit website</a></li>',
                 '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                 '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
