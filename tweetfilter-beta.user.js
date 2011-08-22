@@ -360,7 +360,6 @@ var TweetfilterPrototype = function() {
         lockscroll: false,      //lock scroll position after loading new tweets
         checknewmessages: false,  //check for new messages 
         checknewmentions: false,  //check for new mentions
-        refreshmessages: false,  //try to refresh direct messages in stream
         parselinks: false,     //pick up links and expand or collapse them
         removeselection: false  //remove text selection
       },
@@ -723,6 +722,9 @@ var TweetfilterPrototype = function() {
     this.widget.toggleClass('hidden', !(this.stream.isusers() || this.stream.istweets()));
     this.polling.suspend = false;
     this.polling.busy = false;
+    if (this._stream.namespace === 'MessageStream') {
+      this.poll('checknewmessages');
+    }
     this.poll(['refreshoptions', 'parseitems', 'parselinks', 'refreshfiltercss', 'refreshlayoutcss',
                'refreshfriendscss', 'refreshfilterlist', 'setstreamtitle']);  
     this.poll('findcomponents', 3);
@@ -740,6 +742,7 @@ var TweetfilterPrototype = function() {
     $('#tf-stream-title').html(_("Please wait\u2026"));
     $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
     $('.tf-queries > li', this.widget).toggleClass('notfound', true);
+    //if (this._route)
   };
   
   Tweetfilter.prototype.unknownlocation = function() {
@@ -2235,40 +2238,78 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.checknewmessages = function() {
     if (this.getoption('alert-message') || this.getoption('alert-sound-message')) {
-      twttr.currentUser.receivedMessages({
-        since_id: this.status.messagesinceid ? this.status.messagesinceid : -1,
-        cacheOptions: {skipOverwrite:false},
-        success: twttr.bind(this, function(data, result) {
-          if (result.response.length) {
-            if (this.status.messagesinceid === -1) {
-              this.status.messagesinceid = result.response[0].id;
-              this.savesettings();
-              return;
-            }
+      if (twttr.messageManager) { //message manager loaded
+        if (!twttr.messageManager._tfbound) {
+          if (!twttr.messageManager._pollId) {
+            return false;
+          }
+          if (twttr.messageManager._pollId) {
+            window.clearInterval([twttr.messageManager._pollId,twttr.messageManager._pollId=0][0]);
+            this.timeids.fetchmessages = window.setInterval((function(){ 
+              twttr.messageManager._fetchMessages(); 
+            }), 60000)
+          }
+          twttr.messageManager.bind('messagesArrived', (function(e,messages) {
+            messages.sort(function (a, b) {
+              return twttr.natcompare(a.id, b.id)
+            })
             var newsinceid = 0, newmessagescount = 0;
-            for (var m=0,mlen=result.response.length,message;m<mlen && (message=result.response[m]);m++) {
+            for (var m=0,mlen=messages.array.length,message;m<mlen && (message=messages.array[m]);m++) {
               if (twttr.util.natcompare(message.id, this.status.messagesinceid) > 0) {
                 if (twttr.util.natcompare(message.id, newsinceid) > 0) newsinceid = message.id;
                 newmessagescount++;
               }
             }
-            this.status.messagesinceid = newsinceid;
-            if (this.options['alert-message']) {
+            if (this.getoption('alert-message')) {
               this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
             }
-            if (this.options['alert-sound-message']) {
+            if (this.getoption('alert-sound-message')) {
               this.playsound();
             }
             this.savesettings();
-          } else if (this.status.messagesinceid === -1) { //user has 0 messages received
-            this.status.messagesinceid = 0;
-          }
-        })
-      });
-      if (!this.timeids.checknewmessages || this.timeids.checknewmessages === -1) {
-        this.timeids.checknewmessages = window.setInterval((function() {
-          this.poll('checknewmessages');
-        }).bind(this), 60000);
+          }).bind(this));
+          twttr.messageManager._tfbound = 1;
+          
+        }
+        if (this.timeids.checknewmessages && this.timeids.checknewmessages !== -1) { //triggered by event: cancel poll
+          window.clearInterval([this.timeids.checknewmessages, this.timeids.checknewmessages=-1][0]);
+        }        
+      } else { //message manager not loaded yet, try normal fetch with currentUser
+        twttr.currentUser.receivedMessages({
+          since_id: this.status.messagesinceid ? this.status.messagesinceid : -1,
+          cacheOptions: {skipOverwrite:false},
+          success: (function(e, result) {
+            if (result.response.length) {
+              if (this.status.messagesinceid === -1) {
+                this.status.messagesinceid = result.response[0].id;
+                this.savesettings();
+                return;
+              }
+              var newsinceid = 0, newmessagescount = 0;
+              for (var m=0,mlen=result.response.length,message;m<mlen && (message=result.response[m]);m++) {
+                if (twttr.util.natcompare(message.id, this.status.messagesinceid) > 0) {
+                  if (twttr.util.natcompare(message.id, newsinceid) > 0) newsinceid = message.id;
+                  newmessagescount++;
+                }
+              }
+              this.status.messagesinceid = newsinceid;
+              if (this.options['alert-message']) {
+                this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
+              }
+              if (this.options['alert-sound-message']) {
+                this.playsound();
+              }
+              this.savesettings();
+            } else if (this.status.messagesinceid === -1) { //user has 0 messages received
+              this.status.messagesinceid = 0;
+            }
+          }).bind(this)
+        });
+        if (!this.timeids.checknewmessages || this.timeids.checknewmessages === -1) { //set up continous poll
+          this.timeids.checknewmessages = window.setInterval((function() {
+            this.poll('checknewmessages');
+          }).bind(this), 60000);
+        }
       }
     } else if (this.timeids.checknewmessages && this.timeids.checknewmessages !== -1) { //not active: cancel poll
       window.clearInterval([this.timeids.checknewmessages, this.timeids.checknewmessages=-1][0]);
