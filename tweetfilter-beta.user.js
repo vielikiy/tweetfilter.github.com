@@ -742,7 +742,10 @@ var TweetfilterPrototype = function() {
     $('#tf-stream-title').html(_("Please wait\u2026"));
     $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
     $('.tf-queries > li', this.widget).toggleClass('notfound', true);
-    //if (this._route)
+    if (this._route === 'messages') {
+      $('#message-drawer span.tf.newmessages a.x').trigger('click');
+      
+    }
   };
   
   Tweetfilter.prototype.unknownlocation = function() {
@@ -2257,14 +2260,19 @@ var TweetfilterPrototype = function() {
             for (var m=0,mlen=messages.array.length,message;m<mlen && (message=messages.array[m]);m++) {
               if (twttr.util.natcompare(message.id, this.status.messagesinceid) > 0) {
                 if (twttr.util.natcompare(message.id, newsinceid) > 0) newsinceid = message.id;
-                newmessagescount++;
+                if (''+message.senderId !== this.user.id) {
+                  newmessagescount++;
+                }
               }
             }
-            if (this.getoption('alert-message')) {
-              this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
-            }
-            if (this.getoption('alert-sound-message')) {
-              this.playsound();
+            this.messagesinceid = newsinceid;
+            if (newmessagescount) {
+              if (this.getoption('alert-message') && this._route !== 'messages') {
+                this.showmessage('You have {{count}} new <a href="/#!/messages">messages</a>!', {resident: true, type: 'newmessages', vars: {'+count': newmessagescount}});
+              }
+              if (this.getoption('alert-sound-message')) {
+                this.playsound();
+              }
             }
             this.savesettings();
           }).bind(this));
