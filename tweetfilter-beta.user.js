@@ -722,7 +722,7 @@ var TweetfilterPrototype = function() {
     this.widget.toggleClass('hidden', !(this.stream.isusers() || this.stream.istweets()));
     this.polling.suspend = false;
     this.polling.busy = false;
-    if (this._stream.namespace === 'MessageStream') {
+    if (this._route === 'messages') {
       this.poll('checknewmessages');
     }
     this.poll(['refreshoptions', 'parseitems', 'parselinks', 'refreshfiltercss', 'refreshlayoutcss',
@@ -742,9 +742,11 @@ var TweetfilterPrototype = function() {
     $('#tf-stream-title').html(_("Please wait\u2026"));
     $('[id^="tf-count-"]', this.widget).html('--'); //set counters idle 
     $('.tf-queries > li', this.widget).toggleClass('notfound', true);
+    //close message notification boxes when switching to the stream
     if (this._route === 'messages') {
       $('#message-drawer span.tf.newmessages a.x').trigger('click');
-      
+    } else if (this._route === 'mentions') {
+      $('#message-drawer span.tf.newmentions a.x').trigger('click');
     }
   };
   
@@ -1368,6 +1370,7 @@ var TweetfilterPrototype = function() {
           filteredcount = this.cs.filter.items.length;
           nextid = this.cs.filter.items.length;
           itemcount = this.cs.items.length;
+          var newmentionscount = 0;
           while (filteredcount < itemcount) {
             if (i < filteredcount) {
               if (this.cs.filter.itemids.hasOwnProperty(this.cs.items[i].id)) {
@@ -1439,6 +1442,12 @@ var TweetfilterPrototype = function() {
                 mentioned = mention.screen_name.toLowerCase();
                 if (mentioned === this.user.name) {
                   tweet.mentionsme = true;
+                  if (this.options['alert-mention'] || this.options['alert-sound-mention']) {
+                    if (twttr.util.natcompare(tweet.tweetid, this.status.mentionsinceid) > 0) {
+                      newmentionscount++;
+                      this.status.mentionsinceid = tweet.tweetid;
+                    }
+                  }
                 }
                 if (mention.indices[0] === 0) {
                   tweet.isreply = true; //start of a discussion may not be a reply to a specific tweet, but is still a reply for user's eye, so for the filter
@@ -1478,6 +1487,14 @@ var TweetfilterPrototype = function() {
             filteredcount++;
             i++;
           }
+          if (newmentionscount) {
+            if (this.options['alert-mention'] && this._route != 'mentions') {
+              this.showmessage('You have {{count}} new <a href="/#!/mentions">mentions</a>!', {resident: true, type: 'newmentions', vars: {'+count': newmentionscount}});
+            }
+            if (this.options['alert-sound-mention']) {
+              this.playsound();
+            }
+          }                                                                                         
         }
         this.poll('parsestream');    //always trigger parsestream, new items are already cached before they are displayed 
         break;
@@ -2211,15 +2228,20 @@ var TweetfilterPrototype = function() {
                 this.status.mentionsinceid = result.response[0].id;
                 return;
               }
-              this.status.mentionsinceid = result.response[0].id;
-              var howmany = result.response.length;
-              if (this.getoption('alert-mention')) {
-                this.showmessage('You have {{count}} new <a href="/#!/mentions">mentions</a>!', {resident: true, type: 'newmentions', vars: {'+count': howmany}});
+              if (twttr.util.natcompare(result.response[0].id, this.status.mentionsinceid) > 0) {
+                this.status.mentionsinceid = result.response[0].id;
+                var newmentionscount = result.response.length;
+                if (this.getoption('alert-mention') && this._route !== 'mentions') {
+                  this.showmessage('You have {{count}} new <a href="/#!/mentions">mentions</a>!', {resident: true, type: 'newmentions', vars: {'+count': newmentionscount}});
+                }
+                if (this.getoption('alert-sound-mention')) {
+                  this.playsound();
+                }
+                if (this._route === 'mentions') {
+                  this.cs.fetchTweets();                  
+                }
+                this.savesettings();
               }
-              if (this.getoption('alert-sound-mention')) {
-                this.playsound();
-              }
-              this.savesettings();
             } else {
               return;
             }
@@ -2247,16 +2269,17 @@ var TweetfilterPrototype = function() {
             return false;
           }
           if (twttr.messageManager._pollId) {
-            window.clearInterval([twttr.messageManager._pollId,twttr.messageManager._pollId=0][0]);
-            this.timeids.fetchmessages = window.setInterval((function(){ 
-              twttr.messageManager._fetchMessages(); 
-            }), 60000)
-            twttr.messageManager._setupContinuousPoll =  twttr.messageManager.setupContinuousPoll;
+            window.clearInterval(twttr.messageManager._pollId);
+            delete twttr.messageManager.pollId;
+            twttr.messageManager._setupContinuousPoll =  twttr.messageManager.setupContinuousPoll; //dereference this function, it would restart polling when switching back to messages
             twttr.messageManager.setupContinuousPoll = (function() { 
-              if (!this.getoption('alert-message') && !this.getoption('alert-sound-message')) {
+              if (!this.timeids.fetchmessages) {
                 twttr.messageManager._setupContinuousPoll();
               }
             }).bind(this);
+            this.timeids.fetchmessages = window.setInterval((function(){ 
+              twttr.messageManager._fetchMessages(); 
+            }), 60000)
           }
           twttr.messageManager.bind('messagesArrived', (function(e,messages) {
             var newsinceid = this.status.messagesinceid, newmessagescount = 0;
@@ -2322,8 +2345,11 @@ var TweetfilterPrototype = function() {
           }).bind(this), 60000);
         }
       }
-    } else if (this.timeids.checknewmessages && this.timeids.checknewmessages !== -1) { //not active: cancel poll
-      window.clearInterval([this.timeids.checknewmessages, this.timeids.checknewmessages=-1][0]);
+    } else {
+      //all message alerts disabled
+      if (this.timeids.checknewmessages && this.timeids.checknewmessages !== -1) { //not active: cancel poll
+        window.clearInterval([this.timeids.checknewmessages, this.timeids.checknewmessages=-1][0]);
+      }
     }
     return true; //always stop polling
   };
@@ -2977,7 +3003,7 @@ var TweetfilterPrototype = function() {
         '</div>',
         '<div id="tf-customize">',
           '<ul class="tf-tabs tf-tabs-customize">',
-            '<li class="tf-tab tf-tab-filter tweetstream">',
+            '<li class="tf-tab tf-tab-filter active tweetstream">',
               '<a data-tab="filter">Filter</a>',
             '</li>',
             '<li class="tf-tab">',
