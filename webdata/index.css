@@ -31,7 +31,7 @@ li { margin-bottom: 0.2em; }
 
 #contents { overflow:hidden; position:relative; padding-bottom:5px; }
 #content, #sidebar { float:left; }
-#content { width:60%; background:#fff; -moz-border-radius:15px; padding:25px 0; -moz-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5);
+#content { width:60%; background:#fff; -moz-border-radius:15px; -webkit-border-radius:15px; padding:25px 0; -moz-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5);
           -webkit-box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5); box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5); }
 #sidebar { width:40%; }
 #sidebar > div { margin: 25px 25px 0 25px;  }

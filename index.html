@@ -553,7 +553,7 @@
         twitter: "${title} ${link} by @tweetfilterjs"
       };
       var winresize = function() {
-        $contents.css('height', $content.outerHeight()+4); //fix for bottom shadow
+        $contents.css('height', $content.outerHeight()+14); //fix for bottom shadow
         $sidebarscroll.css({'width':$sidebar.innerWidth()-50});         
       };
       var winscroll = function() {
@@ -701,10 +701,12 @@
         }
         $('body').removeClass('loading');
         if (window.location.hash) {
-          target = $(window.location.hash.toString())
-          if (target.length) {
-            $('html,body').animate({scrollTop: target.offset().top},'normal');
-          }
+          window.setTimeout((function() {
+            target = $(window.location.hash.toString())
+            if (target.length) {
+              $('html,body').animate({scrollTop: target.offset().top},'slow');
+            }
+          }),120);
         }
        });
       var _gaq = _gaq || [];
