@@ -679,9 +679,6 @@
         $sidebar.wrapInner('<div class="scroll"></div>');
         $sidebarscroll = $('> div.scroll', $sidebar);
         $win.resize(winresize).scroll(winscroll).triggerHandler('resize');
-        if (window.location.hash) {
-          window.location.hash = window.location.hash;
-        }
         var versionvalue;
         for(var key in version[0]) {
           versionvalue=  version[0][key];
@@ -703,7 +700,13 @@
           $('em#howtoinstall').before(warning);
         }
         $('body').removeClass('loading');
-      });
+        if (window.location.hash) {
+          target = $(window.location.hash.toString())
+          if (target.length) {
+            $('html,body').animate({scrollTop: target.offset().top},'normal');
+          }
+        }
+       });
       var _gaq = _gaq || [];
       _gaq.push(['_setAccount', 'UA-24587451-1']);
       _gaq.push(['_gat._anonymizeIp']);
