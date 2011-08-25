@@ -207,7 +207,7 @@
                 to refine the filter process.</li>
               <li><strong>Text filters</strong> also scan the <strong>text within expanded links</strong> (the url). It can occur that
                 Tweets will be moved to filtered or back to passed (in case of exclusion) as soon as the
-                <strong>Twitter-API expands a link</strong> in the tweet containing a filter keyword. The option <strong>expand
+                <strong>Twitter-API expands a link</strong> in the Tweet containing a filter keyword. The option <strong>expand
                 links</strong> doesn't need to be active for this to work, links are expanded in the background
                 by the twitter.com application itself, not Tweetfilter. This way Tweetfilter can match
                 <strong>links pointing to certain domains</strong> even if they appear shortened.</li>
@@ -244,9 +244,9 @@
             <h3 id="options-filter">Filter</h3>
             <ul>
               <li><strong>skip mentioning me</strong> will avoid tweets containg an @mention of your username to
-                  be added to "Filtered", even if matching other filters in use. <em>This option is disabled in
+                  be hidden from your timeline, even if matching other filters in use. <em>This option is disabled in
                   @Mentions.</em></li>
-              <li><strong>skip my posts</strong> will never add tweets written by you to "Filtered", even if
+              <li><strong>skip my posts</strong> will always show tweets written by you, even if
                   matching other active filters you set. This option is disabled in timelines 
                   which show only your own Tweets.</li>
               <li><strong>add selection to filter</strong> enables you to quickly add select
@@ -289,23 +289,27 @@
               <li><strong>hide advertising</strong> hides the advertising-box</li>
               <li><strong>hide invite friends</strong> prevents the "invite friends" prompt from showing randomly</li>
               <li><strong>minify menu</strong> shows only essential menu links</li>
+              <li><strong>hide last tweet</strong> removes "Your Tweets" from your dashboard (Home only)</li>
+              <li><strong>expand last tweet</strong> shows the full text of your last Tweet in your dashboard, instead of cutting it off after the first line</li>
             </ul>
-            <h3 id="options-layout">Layout</h3>
+            <h3 id="options-layout">Global</h3>
             <ul>
               <li><strong>auto hide top bar</strong> shows the top bar only when the mouse is over it or when the
                 search-field is focused</li>
               <li><strong>hide question hides</strong> "Whats happening?"</li>
               <li><strong>hide main tweet</strong> box hides the tweet box on top of the timeline. You can still press
                 "N" for new Tweet.</li>
-            </ul>
-            <h3 id="options-notify">Notify</h3>
-            <ul>
               <li><strong>alert new dm</strong> displays a message through Twitters notification system when you have
                 new messages</li>
               <li><strong>sound on new dm</strong> plays a sound on new messages</li>
               <li><strong>alert new mentions</strong> displays a message through Twitters notification system when
                 someone mentioned you (@Mentions)</li>
               <li><strong>sound on new mentions</strong> plays a sound when you have new @Mentions</li>
+              <li><strong>default search to "all"</strong> forces all <strong>searches defaulting to "All Tweets"</strong> instead of 
+                 <strong>"Top Tweets"</strong>. This option affects the top <strong>black bar search</strong>, <strong>clicks on hashtags</strong> in timeline 
+                 and the selection of <strong>saved searches</strong>.</li>
+              <li><b>disable copy link shortener</b> suppresses the t.co link shortener when copying a Tweet's text in your timeline. 
+                   This is especially useful together with the option <b>expand links</b> when you want to copy the real link instead of a t.co-link.</li>              
             </ul>
             <h3 id="options-more">More</h3>
             <ul>
@@ -313,14 +317,12 @@
                 versions like Firefox 3.6.x this solves lags when switching back to a stream which has
                 many loaded (and cached) Tweets. </li>
               <li><strong>fill page with Tweets</strong> causes loading more tweets if less than <strong>10 visible Tweets</strong> are in timeline. 
-                This option is disabled per default, use it wisely. Please note that <strong>loading more Tweets is an API-call</strong> (a call to 
-                the Twitter service), which are <strong>hourly limited</strong> by Twitter. If you <strong>hit the API limit</strong>, don't panic - 
+                This option is disabled per default, use it wisely, it will continue loading Tweets and making API calls if less Tweets are visible. 
+                Please note that <strong>API calls are hourly limited</strong> by Twitter. If you <strong>hit the API limit</strong>, don't panic - 
                 your Twitter will very soon deliver new Tweets again - but make sure you know why this happened to prevent it in the future.</li>
-              <li><strong>expanded link target</strong> makes links in timeline point directly to the expanded link 
+              <li><strong>expand link targets</strong> makes links in timeline point directly to the expanded link 
                 target instead of the t.co-link. This works independently from the option <strong>expand links</strong>.</li>
-               <li><strong>default search to "all"</strong> (More) forces all <strong>searches defaulting to "All Tweets"</strong> instead of 
-                 <strong>"Top Tweets"</strong>. This option affects the top <strong>black bar search</strong>, <strong>clicks on hashtags</strong> in timeline 
-                 and the selection of <strong>saved searches</strong>.</li>
+              <li><b>enable twee+ support</b> expands tweeplus.com shortened Tweets in the details pane (click the Tweet). </li>
               <li>export <strong>Tweetfilter settings</strong> by dragging the "Tweetfilter settings" bookmarklet to
                 your favorites bar (or, alternatively right click > add to bookmarks or similar). 
                 After you click it (while on twitter.com with Tweetfilter running), your settings from the moment of adding the
@@ -332,7 +334,51 @@
             <h2>Tweetfilter Updates</h2>
             <div id="whatsnew">
               <div>
-                <h3>2.0.4</h3>
+                <h3>2.0.5</h3>
+                <ul>
+                  <li><b>Greasemonkey users</b>: The recommended Firefox <b>userscript engine</b> for Tweetfilter is now <a href="https://addons.mozilla.org/firefox/addon/scriptish/" target="_blank"><b>Scriptish</b></a> 
+                      as replacement for Greasemonkey. Scriptish is under active development and offers some nice additions, the most noticeable is an <b>integrated
+                      update notification</b>. If you'd like Firefox to notify you when a new version of Tweetfilter is available, <a href="https://addons.mozilla.org/firefox/addon/scriptish/" target="_blank">get Scriptish now</a>.</li>
+                  <li>Updated widget: <b>better contrast</b> on top filters,  disabling filter hides all filter related controls,
+                      widget adapts visible options to user/tweet stream and hides on pages / streams where Tweetfilter can't operate (like Messages or single Tweet view)</li>
+                   
+                  <li>Added new option <b>show retweeted count</b>, which shows you the count of retweeters at the bottom of Tweets (from the time the tweet reached you).
+                      Clicking the link will <b>show up to 100 profile images/links of the retweeters</b> (which is way more than you see in Tweet's details pane).
+                  </li>
+                  <li>Added new option <b>lock scroll position</b> (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/6" target="_blank">issue 6</a>, 
+                      <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/13" target="_blank">issue 13</a>) 
+                      which keeps the current visible Tweets in place when (automatically) expanding new Tweets instead of scrolling down</li>
+                  <li>Reintroduced <b>expand last tweet</b> (dashboard) together with it's new counter part <b>hide last tweet</b> (options exclude one each other)</li>
+                  <li>Added new option <b>disable copy link shortener</b> to suppress the t.co link shortener when copying a Tweet's text. 
+                      This is especially useful together with the option <b>expand links</b> when you want to copy the real link instead of shortening it again.</li>
+                  <li>Added <b>enable twee+ support</b>: <a href="http://tweeplus.com" target="_blank">tweeplus.com</a> is the only long Tweet service I've seen so far that does not store your 
+                      long Tweets and just posts a link to their page, but takes a smarter approach and delivers the <b>whole text in form of a literal shortened link containing all your text, 
+                      by keeping @mentions in the Tweet</b>. 
+                      This makes it possible to expand the shortened long Tweets without any call to a service (no crossdomain requests).
+                      <br />
+                      Tweetfilter <b>expands twee+ Tweets in the details pane</b> (click the Tweet). 
+                      You can <b>filter twee+ tweets</b> with keywords contained in the expanded twee+ text.
+                      Tweetfilter's <b>link expander collapses links to tweeplus.com</b> in your timeline, avoiding to break the layout. 
+                      </li>
+                   <li>Updated <b>show friend status</b>: better data compression, <b>raised limit to 1.000.000 friends</b>. Loading (many) friends now <b>resumes after F5 reload</b> 
+                    instead of starting over again, if fetch was not completed</li>
+                  <li>Updated option <b>small links</b> (moved to Layout-tab): really long (expanded) links are limited to 3 Tweet lines, 
+                      hovering the link with the mouse will show it entirely.</li>
+                  <li>Updated <b>Mention / Message-Notification</b>:
+                    <ul>
+                      <li>Message notification is now synchronized with the internal message manager, used to fire earlier than the Tweets arrived - F5 is not needed anymore.</li>
+                      <li>Fixed issue with Messages appearing multiple times in stream</li>
+                      <li>Notification box hides as soon as you switch to the according page (Mentions or Messages)</li>
+                    </ul>
+                  </li>
+                  <li>Updated option <b>compact activities</b>, now also shows up on profile pages, bringing you back the <b>Favorites count</b> in the dashboard.</li>
+                  <li>Updated <b>expand links</b>, is now faster</li>
+                  <li>Fixed <b>add selection to filter</b>: selected text now only adds selection to filter if you click the same Tweet's text again</li>
+                  <li>Fixed <b>show line breaks</b> to show multiple line breaks</li>
+                  <li>Fixed <b>show Tweet's local time</b>, is now more accurate (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/11" target="_blank">issue 11</a>),
+                      the <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/7" target="_blank"> possible daylight saving discrepancy</a> remains)</li>
+                </ul>
+                 <h3>2.0.4</h3>
                 <ul>
                   <li>Fixed <strong>show friend status</strong> (Timeline) to sostain up to 600.000 friends (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/8" target="_blank">issue #8</a>)</li>
                   <li>Added option <strong>default search to "all"</strong> (More) which forces all <strong>searches defaulting to "All Tweets"</strong> instead of <strong>"Top Tweets"</strong>. This works
@@ -425,8 +471,9 @@
                 <li>Go to <a href="http://twitter.com/#" target="_blank">Twitter</a></li>
               </ol>
             </div>
-            <p class="note">Permanent installations will not update automatically. Please follow/list <a href="https://twitter.com/tweetfilterjs">@tweetfilterjs</a> 
-                for update notifications or check this site for updates.</p>
+            <p class="note">Though it is still compatible, Greasemonkey won't tell you when a new version of Tweetfilter is available. 
+                Please follow/list <a href="https://twitter.com/tweetfilterjs">@tweetfilterjs</a> for update notifications, check this site for updates
+                or switch from Greasemonkey to Scriptish.</p>
             <p class="note">Permanent installation with Opera through Javascript settings is not supported
                 anymore. Please use the bookmarklet instead, which also has
                 other advantages, or send your suggestions <a href="https://twitter.com/tweetfilterjs" target="_blank">@tweetfilterjs</a> if you know an alternative
