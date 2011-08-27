@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name             Tweetfilter
-// @version          2.0.5
+// @version          2.0.6
 // @namespace        Chilla42o
-// @description      Tweetfilter is a highly customizable timeline filter for the twitter.com web client
-// @updateURL        https://userscripts.org/scripts/source/49905.meta.js
+// @description      Tweetfilter is a highly customizable timeline filter and feature extension for twitter.com
 // @homepageURL      http://tweetfilter.org
+// @updateURL        https://userscripts.org/scripts/source/49905.meta.js
 // @supportURL       http://github.com/Tweetfilter/tweetfilter.github.com/issues 
 // @contributionURL  http://flattr.com/thing/333626/Tweetfilter
+// @icon             http://tweetfilter.org/icon32.png
+// @icon64           http://tweetfilter.org/icon64.png
 // @domain           twitter.com 
 // @include          http://twitter.com/
 // @include          https://twitter.com/
@@ -33,11 +35,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 var TweetfilterPrototype = function() {
   
@@ -49,7 +46,7 @@ var TweetfilterPrototype = function() {
     
     this.version = '2.0.5'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
-    this._betafeatures = false; //enable/disable (unfinished) beata features
+    this._betafeatures = false; //enable/disable (unfinished) beta features
     
     // internal route, page and stream declarations
     var pagemap = { //pagename => route.name
@@ -696,7 +693,6 @@ var TweetfilterPrototype = function() {
       this.bind('moreitemsloaded', this.moreitemsloaded.bind(this));
       this.bind('pageunknown routeunknown streamunknown', this.unknownlocation.bind(this));
       this.twttreventhandler({type:'routeFollowed'}, twttr.router.getCurrentRoute()); //fire up first time      
-      twttr.decider._features.muteUsers = 1; //enable internal mute user  
       return true;
     } catch(e) {
       return false;
@@ -720,6 +716,7 @@ var TweetfilterPrototype = function() {
       this.status.scrollsinceid = false;
       this.stream.newitemsloaded = false;
     }
+    twttr.decider._features.muteUsers = 1; //enable internal mute user  
     this.widget.toggleClass('userstream', this.stream.isusers());
     this.widget.toggleClass('tweetstream', this.stream.istweets());
     this.widget.toggleClass('hidden', !(this.stream.isusers() || this.stream.istweets()));
@@ -3124,7 +3121,7 @@ var TweetfilterPrototype = function() {
             '</ul>',
             '<div class="about">',
               '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-08-25</span></li>',
+                '<li class="version">Tweetfilter '+this.version+' <span>11-08-27</span></li>',
                 '<li class="website"><a href="http://tweetfilter.org/" target="_blank">Visit website</a></li>',
                 '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                 '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -4244,9 +4241,24 @@ var TweetfilterPrototype = function() {
     return false;
   }; 
 
+  //Opera compatibility: see https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/bind#Compatibility  
+  if (!Function.prototype.bind) {
+    Function.prototype.bind = function (oThis) {
+      if (typeof this !== "function") // closest thing possible to the ECMAScript 5 internal IsCallable function
+        throw new TypeError("Function.prototype.bind - what is trying to be fBound is not callable");
+      var aArgs = Array.prototype.slice.call(arguments, 1), 
+          fToBind = this, 
+          fNOP = function () {},
+          fBound = function () {
+            return fToBind.apply(this instanceof fNOP ? this : oThis || window, aArgs.concat(Array.prototype.slice.call(arguments)));    
+          };
+      fNOP.prototype = this.prototype;
+      fBound.prototype = new fNOP();
+      return fBound;
+    };
+  } 
   window.twtfilter = new Tweetfilter; //create a neighbor of twttr
-
-}
+} 
 
 if (window.top === window.self && //don't run in twitter's helper iframes
   !document.getElementsByClassName('twtfilterscript').length)  //don't inject multiple times (bookmarklet)
