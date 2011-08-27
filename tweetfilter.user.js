@@ -3121,7 +3121,7 @@ var TweetfilterPrototype = function() {
             '</ul>',
             '<div class="about">',
               '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-08-25</span></li>',
+                '<li class="version">Tweetfilter '+this.version+' <span>11-08-27</span></li>',
                 '<li class="website"><a href="http://tweetfilter.org/" target="_blank">Visit website</a></li>',
                 '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                 '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
@@ -4241,9 +4241,24 @@ var TweetfilterPrototype = function() {
     return false;
   }; 
 
+  //Opera compatibility: see https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/bind#Compatibility  
+  if (!Function.prototype.bind) {
+    Function.prototype.bind = function (oThis) {
+      if (typeof this !== "function") // closest thing possible to the ECMAScript 5 internal IsCallable function
+        throw new TypeError("Function.prototype.bind - what is trying to be fBound is not callable");
+      var aArgs = Array.prototype.slice.call(arguments, 1), 
+          fToBind = this, 
+          fNOP = function () {},
+          fBound = function () {
+            return fToBind.apply(this instanceof fNOP ? this : oThis || window, aArgs.concat(Array.prototype.slice.call(arguments)));    
+          };
+      fNOP.prototype = this.prototype;
+      fBound.prototype = new fNOP();
+      return fBound;
+    };
+  } 
   window.twtfilter = new Tweetfilter; //create a neighbor of twttr
-
-}
+} 
 
 if (window.top === window.self && //don't run in twitter's helper iframes
   !document.getElementsByClassName('twtfilterscript').length)  //don't inject multiple times (bookmarklet)
