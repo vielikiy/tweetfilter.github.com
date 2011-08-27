@@ -98,6 +98,13 @@ a.bookmarklet.grab { background-image:url('tf-bookmarklet-grab.gif'); }
 #support a.plusone span { border-color: #E32C3B; color:#00549C; font-weight:bold; text-shadow:0 0 3px rgba(0,0,0,0.3); }
 #support a.plusone span i { font-style:normal; color:#E32C3B;  }
 
+
+#thankyou { overflow:hidden; padding-top:25px; }
+#thankyou img { float:left; margin-left:25px; }
+#thankyou h1 { text-align:center; }
+#thankyou h2 { text-align:center; }
+
+
 #description a { background:#fff; color:#1C6BBD;  }
 #description a i { font-style:normal; color:#999; }
 #description a:hover { background:#eee; }

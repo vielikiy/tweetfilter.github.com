@@ -522,7 +522,7 @@
               done and for new nice features to come. Thank you very much!</p>
             <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
               <input name="cmd" value="_s-xclick" type="hidden" />
-              <input name="hosted_button_id" value="J9ZSAVRL8GKQ2" type="hidden" />
+              <input type="hidden" name="hosted_button_id" value="LKM9ZBZ77KSYN">
               <a class="paypal" href="#" data-type="submit"><span>Donate via <i>Pay</i><i>Pal™</i></span></a>
               <a class="flattr" href="http://flattr.com/thing/333626/Tweetfilter" target="_blank">
                 <span>Flattr <i>this</i></span>
@@ -702,7 +702,11 @@
         $('body').removeClass('loading');
         if (window.location.hash) {
           window.setTimeout((function() {
-            target = $(window.location.hash.toString())
+            var target, targetid = window.location.hash.toString();
+            if (targetid === '#thankyou') {
+              $('#description').after(version[0].thankyou);
+            }
+            target = $(targetid);
             if (target.length) {
               $('html,body').animate({scrollTop: target.offset().top},'slow');
             }
