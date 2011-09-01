@@ -530,28 +530,21 @@
               <img alt="" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" height="1" width="1" />
             </form>
             <h2>Share with your friends</h2>
-            <div class="a2a_kit">
-              <a class="a2a_button_twitter twttr">
-                <span>Twitter</span>
-              </a>
-              <a class="a2a_button_stumbleupon stumble">
-                <span>Stumble<i>Upon</i></span>
-              </a>
-              <a class="a2a_button_googleplusone plusone">
-                <span>Google <i>+1</i></span>
-              </a>
+            <div class="sharethis">
+              <span class='st_twitter_vcount' displayText='Tweet'></span>
+              <span class='st_stumbleupon_vcount' displayText='StumbleUpon'></span>
+              <span class='st_sharethis_vcount' displayText='ShareThis'></span>
+              <span class='st_facebook_vcount' displayText='Facebook'></span>
+              <span class='st_plusone_vcount' ></span>            
             </div>
           </div>
        </div><!--sidebar-->
       </div><!--contents-->
     </div><!--all-->
+    <script type="text/javascript">var switchTo5x=false;</script><script type="text/javascript" src="http://w.sharethis.com/button/buttons.js"></script>
+    <script type="text/javascript">stLight.options({publisher:'5bac7d26-3bc6-49e7-9b2e-7bf4e9a13321'});</script>    
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
-    <script src="http://static.addtoany.com/menu/page.js"></script>   
     <script>
-      var a2a_config = a2a_config || {};
-      a2a_config.templates = {
-        twitter: "${title} ${link} by @tweetfilterjs"
-      };
       var winresize = function() {
         $contents.css('height', $content.outerHeight()+14); //fix for bottom shadow
         $sidebarscroll.css({'width':$sidebar.innerWidth()-50});         
