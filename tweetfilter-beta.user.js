@@ -1109,6 +1109,7 @@ var TweetfilterPrototype = function() {
         this.widget.toggleClass('disabled', status);
         $('#tf-filter-add').trigger('blur').attr('disabled', status);
         this.poll(['refreshoptions', 'setstreamtitle']);
+        this.trigger('resizepane');
         this.poll((status ? 'add' : 'remove') +'class', [option]);
         polls = ['refreshfiltercss'];
       break;
@@ -3143,6 +3144,7 @@ var TweetfilterPrototype = function() {
           '<div data-tab="timeline">',
             '<ul class="checks">',
               '<li><a data-option="show-friends" title="show who follows you / who you follow"><b></b>show friend status</a></li>',
+              '<li class="tweetstream"><a data-option="show-retweeted" title="show Retweeters"><b></b>show retweeted count</a></li>',
               '<li class="tweetstream"><a data-option="show-via" title="show tweet source"><b></b>show via in Tweets</a></li>',
               '<li class="tweetstream"><a data-option="show-br" title="show line breaks in Tweets"><b></b>show line breaks</a></li>',
               '<li class="tweetstream"><a data-option="show-usertime" title="show local Tweet creation time"><b></b>show Tweet\'s local time</a></li>',
@@ -3150,7 +3152,6 @@ var TweetfilterPrototype = function() {
               '<li class="tweetstream"><a data-option="expand-new" title="immediately show new Tweets"><b></b>expand new Tweets</a></li>',
               '<li class="tweetstream"><a data-option="scroll-lock" title="lock current scroll position when loading new tweets"><b></b>lock scroll position</a></li>',
               '<li class="tweetstream"><a data-option="expand-links" title="expand shortened links in Tweets"><b></b>expand links</a></li>',
-              '<li class="tweetstream"><a data-option="show-retweeted" title="show Retweeters"><b></b>show retweeted count</a></li>',
             '</ul>',
           '</div>',
           '<div data-tab="dashboard">',
@@ -3941,7 +3942,9 @@ var TweetfilterPrototype = function() {
     if (this.getoption('filter-disabled') || !this.stream.isready() || !this.stream.istweets()) {
       style.push('.tf-actions > a.tf.menu { display:none !important; }'); //hide the "add to filter" dropdown in stream while disabled
       this.setcss('filter', style.join("\n"));
-      return this.stream.isready();
+      if (!this.stream.isready() || !this.stream.istweets()) {
+        return false;
+      }
     }
     if (!this.cs.hasOwnProperty('filter')) {
       this.poll('parseitems');
@@ -4012,13 +4015,15 @@ var TweetfilterPrototype = function() {
     }
     this.setcss('filter', style.join("\n"));
     $('body').toggleClass('tf-filter-inverted', inverted);
-    $('#tf-count-items').html(this.cs.filter.items.length); //all tweets in timeline
-    $('#tf-count-filtered').html(this.cs.filter.hidden.length); //filtered (hidden) tweets
-    $('#tf-count-passed').html(this.cs.filter.passed.length); //tweets wich passed all filters
-    $('#tf-count-retweet').html(this.cs.filter.retweets.length);
-    $('#tf-count-media').html(this.cs.filter.media.length);
-    $('#tf-count-replies').html(this.cs.filter.replies.length);
-    $('#tf-count-links').html(this.cs.filter.links.length);
+    if (!this.getoption('filter-disabled')) {
+      $('#tf-count-items').html(this.cs.filter.items.length); //all tweets in timeline
+      $('#tf-count-filtered').html(this.cs.filter.hidden.length); //filtered (hidden) tweets
+      $('#tf-count-passed').html(this.cs.filter.passed.length); //tweets wich passed all filters
+      $('#tf-count-retweet').html(this.cs.filter.retweets.length);
+      $('#tf-count-media').html(this.cs.filter.media.length);
+      $('#tf-count-replies').html(this.cs.filter.replies.length);
+      $('#tf-count-links').html(this.cs.filter.links.length);
+    }
     if (this.getoption('tweets-fill-page') && tweetsvisible < 10) {
       this.cs.getMoreOldItems();
     }
