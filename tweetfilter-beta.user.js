@@ -3656,6 +3656,7 @@ var TweetfilterPrototype = function() {
 //      'body.tf-enable-tweeplus input.tweet-counter { width: 55px; }', -> breaks layout
       'body.tf-enable-tweeplus a.twee-button { display:inline-block; }',
       'body.tf-enable-tweeplus a.tweet-button.disabled { display:none; }',
+      'body.tf-enable-tweeplus .tweet-button-sub-container { position:absolute; right:0; }', //fix jumping tweet button container
       'body.tf-show-retweeted div.tweet-row.tf { display:block; }',
       'body.tf-show-timestamp .main-content a.tweet-timestamp { display:none; }',
       '.main-content a.tf-timestamp { font-size:11px; color:#999 !important; display:none; }',
