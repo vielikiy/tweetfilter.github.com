@@ -334,6 +334,18 @@
             <h2>Tweetfilter Updates</h2>
             <div id="whatsnew">
               <div>
+                <h3>2.0.6</h3>
+                <ul>
+                  <li>Fixed <b>show friend status</b> not updating after first load. Reduced refresh time to 15 minutes for users with less than 5000 friends.
+                      Now also works on <b>"you both follow"</b> streams.</li>
+                  <li>Added new option <b>show full timestamp</b> (Timeline) which replaces the time ago display in Tweets with the full date and time.</li>
+                  <li>Added new option <b>enable rich text editor</b> (More) which unlocks the new Tweet editor when writing new Tweets (Twitter beta feature, disabled in Opera where it doesn't work yet).</li>
+                  <li>Fixed <b>highlight mentioning me</b> and <b>highlight my tweets</b> to work when filter is disabled</li>
+                  <li>Updated <b>show retweeted count</b>, sorts the retweeting users by their followers count and displays the total count of users the Tweet reached through retweets.</li>
+                  <li>Fixed <b>compact activities</b> not refreshing immediately when switching back to a previously loaded page.</li>
+                  <li>Updated <b>twee+ support</b> to recognize in_reply_to-links</li>
+                  <li>Improved option <b>show Tweet's local time</b>, balloon help now also shows the approximate difference between your and posting user's time.</li>
+                </ul>
                 <h3>2.0.5</h3>
                 <ul>
                   <li><b>Greasemonkey users</b>: The recommended Firefox <b>userscript engine</b> for Tweetfilter is now <a href="https://addons.mozilla.org/firefox/addon/scriptish/" target="_blank"><b>Scriptish</b></a> 
@@ -531,11 +543,10 @@
             </form>
             <h2>Share with your friends</h2>
             <div class="sharethis">
-              <span class='st_twitter_vcount' displayText='Tweet'></span>
-              <span class='st_stumbleupon_vcount' displayText='StumbleUpon'></span>
-              <span class='st_sharethis_vcount' displayText='ShareThis'></span>
-              <span class='st_facebook_vcount' displayText='Facebook'></span>
-              <span class='st_plusone_vcount' ></span>            
+              <span class="st_twitter_vcount" displayText="Tweet"></span>
+              <span class="st_stumbleupon_vcount" displayText="StumbleUpon"></span>
+              <span class="st_sharethis_vcount" displayText="ShareThis"></span>
+              <span class="st_plusone_vcount" ></span>            
             </div>
           </div>
        </div><!--sidebar-->
