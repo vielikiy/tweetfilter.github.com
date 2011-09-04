@@ -2956,7 +2956,7 @@ var TweetfilterPrototype = function() {
         if (showexpanded) {
           link.data('displayurl', linkdata.expandedurl);
           if (linkdata.expandedurl.indexOf('tweeplus.com')>-1 &&  
-              linkdata.expandedurl.match(/^(http:\/\/)?tweeplus\.com\/?.*#.+/)) 
+              linkdata.expandedurl.match(/^(http:\/\/)?tweeplus\.com\/?[\?#].+/)) 
           {
             if (linkdata.expandedurl.indexOf('\u2026')===-1) linkdata.hash = linkdata.expandedurl.split('#')[1];
             link.html('twee+ \u2026').addClass('tf-tweeplus');
