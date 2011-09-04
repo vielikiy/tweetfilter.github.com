@@ -690,12 +690,17 @@ var TweetfilterPrototype = function() {
       this.bind('streamswitched', this.streamswitched.bind(this));
       this.bind('newitemsloaded', this.newitemsloaded.bind(this));
       this.bind('moreitemsloaded', this.moreitemsloaded.bind(this));
+      this.bind('pageswitched', this.pageswitched.bind(this));
       this.bind('pageunknown routeunknown streamunknown', this.unknownlocation.bind(this));
       this.twttreventhandler({type:'routeFollowed'}, twttr.router.getCurrentRoute()); //fire up first time      
       return true;
     } catch(e) {
       return false;
     }   
+  };
+  
+  Tweetfilter.prototype.pageswitched = function() {
+    this.poll('refreshactivities');
   };
   
   Tweetfilter.prototype.moreitemsloaded = function() {
@@ -2966,7 +2971,7 @@ var TweetfilterPrototype = function() {
         '</div>'
     ].join("\n"));
     target.before(activities);
-    this.refreshactivities();
+    this.poll('refreshactivities');
   };
   
   Tweetfilter.prototype.clearexpiredvalues = function() {
