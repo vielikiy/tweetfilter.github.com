@@ -730,6 +730,9 @@ var TweetfilterPrototype = function() {
       twttr.util.lazyBind(window, 'resize', (function() {
         this.trigger('resizepane');
       }).bind(this));
+      if (!$.browser.mozilla && !$.browser.webkit) {
+        this.disabledoptions.push('enable-richtext');
+      }
       this.setdeciderfeatures();
       this.createwidget();
       this.loadsettings();
@@ -2584,10 +2587,9 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.refreshtwee = function() {
-    if (this._tweetarea) {
-      var tweettext = this._tweetarea.val();
-      var textlength = tweettext.length;
-      this._tweebutton.toggleClass('disabled', textlength <= 140 || textlength > 2000);
+    if (this._tweetcounter) {
+      var charsleft = +this._tweetcounter.val();
+      this._tweebutton.toggleClass('disabled', charsleft < -2000 || charsleft >= 0);
     }
   };
 
@@ -2599,6 +2601,7 @@ var TweetfilterPrototype = function() {
         }
         this._tweetbox = $(e.currentTarget).closest('.tweet-box');
         this._tweetarea = this._tweetbox.find('textarea');
+        this._tweetcounter = this._tweetbox.find('input.tweet-counter');
         this._tweetbutton = this._tweetbox.find('a.tweet-button:not(.twee-button)');
         this._tweebutton = this._tweetbox.find('a.twee-button');
         if (!this._tweebutton.length) {
@@ -2616,7 +2619,7 @@ var TweetfilterPrototype = function() {
       case 'focusout':
         if (this.timeids.refreshtwee && this.timeids.refreshtwee > -1) {
           window.clearInterval([this.timeids.refreshtwee, this.timeids.refreshtwee = -1][0]);
-          this._tweetbox = this._tweetarea = this._tweetbutton = this._tweebutton = false;
+          this._tweetbox = this._tweetarea = this._tweetbutton = this._tweebutton = this._tweetcounter = false;
         }
         break;
     }
@@ -2957,7 +2960,7 @@ var TweetfilterPrototype = function() {
           {
             if (linkdata.expandedurl.indexOf('\u2026')===-1) linkdata.hash = linkdata.expandedurl.split('#')[1];
             link.html('twee+ \u2026').addClass('tf-tweeplus');
-          } else {
+          } else if (!link.hasClass('tf-tweeplus')) {
             link.html(decodeURIComponent(linkdata.expandedurl));
           }
         } else {
@@ -3644,12 +3647,13 @@ var TweetfilterPrototype = function() {
       'body.tf-hide-tweetbox #main-tweet-box, body.tf-hide-tweetbox .main-tweet-box  { display:none; }',
       'body.tf-hide-tweetbox div.page-header { padding-top:4px; }',
       'body.tf-hide-tweetbox div.page-header ul.stream-tabs { margin-top:5px; }',
+      'a.tf-tweeplus { font-weight:bold; white-space:nowrap; }',
       'span.tf-usertime { display:none; color:#5EBF7E !important; font-size:11px; }',
       'body.tf-show-usertime span.tf-usertime { display:inline; }',
       'div.tweet-row.tf { display:none; }',
       'span.tf-rtc:hover { color:@link; }',
       'a.twee-button { display:none; }',
-      'body.tf-enable-tweeplus input.tweet-counter { width: 55px; }',
+//      'body.tf-enable-tweeplus input.tweet-counter { width: 55px; }', -> breaks layout
       'body.tf-enable-tweeplus a.twee-button { display:inline-block; }',
       'body.tf-enable-tweeplus a.tweet-button.disabled { display:none; }',
       'body.tf-show-retweeted div.tweet-row.tf { display:block; }',
