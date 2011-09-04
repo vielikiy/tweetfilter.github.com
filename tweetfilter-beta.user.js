@@ -84,6 +84,7 @@ var TweetfilterPrototype = function() {
       "userLists": "OwnLists",
       "userFavorites": "Favorites",
       "userFollowing": "Friends",
+      "youBothFollow": "SocialContextStream",
       "userFollowingTweets": "FollowingTweets",
       "userFollowers": "Followers",
       "similarTo": "UserSimilaritiesStream",
@@ -3948,7 +3949,7 @@ var TweetfilterPrototype = function() {
       style.push('.tf-actions > a.tf.menu { display:none !important; }'); //hide the "add to filter" dropdown in stream while disabled
       this.setcss('filter', style.join("\n"));
       if (!this.stream.isready() || !this.stream.istweets()) {
-        return false;
+        return this.stream.isready();
       }
     }
     if (!this.cs.hasOwnProperty('filter')) {
