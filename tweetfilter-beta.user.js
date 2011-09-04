@@ -1268,8 +1268,8 @@ var TweetfilterPrototype = function() {
         this.poll((status ? 'add' : 'remove') +'class', [option]);
       break;
       case 'enable-tweeplus': /* expand twee+ in detail pane */
-        this.poll((status ? 'add' : 'remove') +'class', [option]);
       case 'expand-links': /* show expanded links */
+        this.poll((status ? 'add' : 'remove') +'class', [option]);
         this.poll('parselinks');
       break;
       case 'alert-mention':
@@ -3647,7 +3647,7 @@ var TweetfilterPrototype = function() {
       'body.tf-hide-tweetbox #main-tweet-box, body.tf-hide-tweetbox .main-tweet-box  { display:none; }',
       'body.tf-hide-tweetbox div.page-header { padding-top:4px; }',
       'body.tf-hide-tweetbox div.page-header ul.stream-tabs { margin-top:5px; }',
-      'a.tf-tweeplus { font-weight:bold; white-space:nowrap; }',
+      'body.tf-expand-links a.tf-tweeplus { font-weight:bold; white-space:nowrap; }',
       'span.tf-usertime { display:none; color:#5EBF7E !important; font-size:11px; }',
       'body.tf-show-usertime span.tf-usertime { display:inline; }',
       'div.tweet-row.tf { display:none; }',
