@@ -360,7 +360,7 @@ var TweetfilterPrototype = function() {
       encode: (function(text, replytourl) {
         text = $.trim(text);
         var username = replytourl ? (replytourl.match(/\/(\w+)\/status\//i) || [,''])[1] : '',
-          cutoff = 116 - (username? username.length + 2 : 0), // initial cut-off point
+          cutoff = 115 - (username? username.length + 2 : 0), // initial cut-off point
           summary,
           mentions = this.tweeplus.mentions(text),
           previousLength = mentions.length + 1;
