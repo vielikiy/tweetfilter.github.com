@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name             Tweetfilter
-// @version          2.0.7
+// @version          2.0.8
 // @namespace        Chilla42o
 // @description      Tweetfilter is a highly customizable timeline filter and feature extension for twitter.com
 // @homepageURL      http://tweetfilter.org
@@ -1819,85 +1819,82 @@ var TweetfilterPrototype = function() {
   
   
   Tweetfilter.prototype.loadfriends = function() { //load friends until finished, poll fetchfriends if not fully loaded
-    
-    
-    var friends = this.getvalue(':FRIENDS:', {});
-    if ((friends.hasOwnProperty('expires') || friends.hasOwnProperty('fetchexpires')) && friends.hasOwnProperty('packets')) {
-      if (friends.userid !== this.user.id || friends.expires < (new Date()).getTime()) {
+    var friends;
+    if ((friends = this.getvalue(':FRIENDS:', false))) {
+      if ((!friends.hasOwnProperty('expires') && !friends.hasOwnProperty('fetchexpires')) || !friends.hasOwnProperty('packets') || 
+           friends.userid !== this.user.id || friends.expires < (new Date()).getTime()) {
         this.clearfriends();
         this.poll('fetchfriends');
         return true;
       }
-      if ((friends.expires > this.friends.expires) || //is saved friend status newer than loaded   or 
-          (friends.fetching && this.friends.loadedpacket < friends.packets && friends.fetchexpires > this.friends.expires)  //is saved friend status partial and not fully loaded
-         ) 
-       {
-        this.friends.loading = true; 
-        //resume last fetch, if was incomplete
-        if (!this.friends.loadingexpires || //not an incomplete fetch
-            ((!friends.fetching && this.friends.loadingexpires !== friends.expires) || 
-             (friends.fetching && this.friends.loadingexpires !== friends.fetchexpires))) 
-         { 
-          //assure we do not load friend status from different saved versions (e.g. when saved in other tab while loading here)
-          this.friends.loadingexpires = friends.fetching ? friends.fetchexpires : friends.expires;
-          this.friends.loadedpacket = 0;
-          this.friends.fids = {};
-          if (friends.fetchexpires < (new Date()).getTime()) {
-            this.clearfriends();
-            this.friends.fetchedpackets = this.friends.loadedpacket = 0;
-            this.poll('fetchfriends');
-            return true;
-          }          
-          if (!this.friends.expires && friends.packets > 10) {
-            this.showmessage('Tweetfilter is loading friends,<br> you can use <b>show friend status</b> very soon...', {timeout: 4200});
-          }
-        }
-        
-        if (this.friends.loadedpacket < friends.packets) {
-          var packet = this.unpack(this.getvalue(':FRIENDS:'+this.friends.loadedpacket, false, false)), uids, u, uv, i, umax;
-          if (packet) { 
-            for (i=0;i<3;i++) {
-              uv = i > 1 ? 4 : i+1; //1=following,2=follower,4=mutual
-              if (packet[i]) { 
-                uids = packet[i].split(',');  
-                for (u=0,umax=uids.length;u<umax;u++) this.friends.fids[this.decodenum(uids[u])] = uv; 
-              }
-            }
-            this.friends.loadedpacket++;
-            return false; 
-          } else if (friends.fetching) { 
-            this.poll('fetchfriends')
-            return true; 
-          } else { 
-            this.clearfriends();
-            this.poll('fetchfriends');
-            return true;
-          }
-        } else { 
-          this.friends.expires = friends.expires;
-          this.friends.uids = this.friends.fids;
-          this.friends.fids = {};
-          this.friends.loading = false;
-          if (this.friends.loadedpacket > 10) {
-            this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
-          }
-          this.poll(['refreshoptions', 'refreshfriendscss']);
-          return true; 
-        }
-      } else if (friends.fetching) {
-        this.friends.loading = true;
-        this.friends.fetchedpackets = this.friends.loadedpacket;
-        this.friends.loadedpacket = 0;
-        this.setvalue(':FRIENDS:', friends);
-        this.poll('fetchfriends');
-      } 
-      return true; 
-    } else if (!this.friends.expires) { 
+    } else {
       this.poll('fetchfriends');
       return true;
-    } else { 
-      return true;
     }
+    if ((friends.expires > this.friends.expires) || //is saved friend status newer than loaded   or 
+        (friends.fetching && this.friends.loadedpacket < friends.packets && friends.fetchexpires > this.friends.expires)  //is saved friend status partial and not fully loaded
+       ) 
+     {
+      this.friends.loading = true; 
+      //resume last fetch, if was incomplete
+      if (!this.friends.loadingexpires || //not an incomplete fetch
+          ((!friends.fetching && this.friends.loadingexpires !== friends.expires) || 
+           (friends.fetching && this.friends.loadingexpires !== friends.fetchexpires))) 
+       { 
+        //assure we do not load friend status from different saved versions (e.g. when saved in other tab while loading here)
+        this.friends.loadingexpires = friends.fetching ? friends.fetchexpires : friends.expires;
+        this.friends.loadedpacket = 0;
+        this.friends.fids = {};
+        if (friends.fetchexpires < (new Date()).getTime()) {
+          this.clearfriends();
+          this.friends.fetchedpackets = this.friends.loadedpacket = 0;
+          this.poll('fetchfriends');
+          return true;
+        }          
+        if (!this.friends.expires && friends.packets > 10) {
+          this.showmessage('Tweetfilter is loading friends,<br> you can use <b>show friend status</b> very soon...', {timeout: 4200});
+        }
+      }
+
+      if (this.friends.loadedpacket < friends.packets) {
+        var packet = this.unpack(this.getvalue(':FRIENDS:'+this.friends.loadedpacket, false, false)), uids, u, uv, i, umax;
+        if (packet) { 
+          for (i=0;i<3;i++) {
+            uv = i > 1 ? 4 : i+1; //1=following,2=follower,4=mutual
+            if (packet[i]) { 
+              uids = packet[i].split(',');  
+              for (u=0,umax=uids.length;u<umax;u++) this.friends.fids[this.decodenum(uids[u])] = uv; 
+            }
+          }
+          this.friends.loadedpacket++;
+          return false; 
+        } else if (friends.fetching) { 
+          this.poll('fetchfriends')
+          return true; 
+        } else { 
+          this.clearfriends();
+          this.poll('fetchfriends');
+          return true;
+        }
+      } else { 
+        this.friends.expires = friends.expires;
+        this.friends.uids = this.friends.fids;
+        this.friends.fids = {};
+        this.friends.loading = false;
+        if (this.friends.loadedpacket > 10) {
+          this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
+        }
+        this.poll(['refreshoptions', 'refreshfriendscss']);
+        return true; 
+      }
+    } else if (friends.fetching) {
+      this.friends.loading = true;
+      this.friends.fetchedpackets = this.friends.loadedpacket;
+      this.friends.loadedpacket = 0;
+      this.setvalue(':FRIENDS:', friends);
+      this.poll('fetchfriends');
+    } 
+    return true; 
   };
   
   //fetch friends from api, used by refreshfriends. don't call this function directly.
@@ -1976,7 +1973,7 @@ var TweetfilterPrototype = function() {
               this.setvalue(':FRIENDS:', friends);
               //return; //uncomment to quit after following have been fetched to test load resume
               this.poll('fetchfriends');
-            }else { //finished fetching friendids and followerids
+            } else { //finished fetching friendids and followerids
               if (peoplecount > 42000 && !this.friends.expires) {
                 this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
               }
@@ -2011,13 +2008,9 @@ var TweetfilterPrototype = function() {
           }
         }).bind(this),
         error : (function() {
-          this.friends.errors++;
-          if (this.friends.errors < 5) {
-            this.poll('fetchfriends');
-          } else {
-            this.friends.restartat = (new Date()).getTime() + (15 * 60 * 1000); //try again in 15min. 
-            this.showmessage('Failed fetching friends. Retrying again later.');
-          }
+          this.clearfriends();
+          this.friends.restartat = (new Date()).getTime() + (15 * 60 * 1000); //try again in 15min. 
+          this.showmessage('Failed fetching friends. Retrying again later.');
         }).bind(this)
       });
     }
@@ -3396,7 +3389,7 @@ var TweetfilterPrototype = function() {
             '</ul>',
             '<div class="about">',
               '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-09-28</span></li>',
+                '<li class="version">Tweetfilter '+this.version+' <span>11-09-30</span></li>',
                 '<li class="website"><a href="http://tweetfilter.org/" target="_blank">Visit website</a></li>',
                 '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
                 '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
