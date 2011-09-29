@@ -52,7 +52,7 @@ var TweetfilterPrototype = function() {
     this.color_excluded = '#E5F4AC'; // tweets matching excluded filters
     this.color_me = '#FFFAB4'; // tweets written by current user
     
-    this.version = '2.0.7'; //current visible script version
+    this.version = '2.0.8'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     
     // internal route, page and stream declarations
@@ -1934,6 +1934,7 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.debugfriends = function() { //call in firebug console: twtfilter.debugfriends()
     console.log(localStorage.getItem(':FRIENDS:'));
+   
     var packet = 0, totalsize=0, people=0, cs, ucs, following, follower, mutual;
     for (var i=0,item;i<localStorage.length && (item = localStorage.key(i));i++) {
       if (typeof item==='string' && item !== ':FRIENDS:' && item.indexOf(':FRIENDS:')===0) {
@@ -1995,109 +1996,106 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.loadfriends = function() { //load friends until finished, poll fetchfriends if not fully loaded
                                                                                                     var f=_F('loadfriends')
-    
-    
-    var friends = this.getvalue(':FRIENDS:', {});
-    if ((friends.hasOwnProperty('expires') || friends.hasOwnProperty('fetchexpires')) && friends.hasOwnProperty('packets')) {
-      if (friends.userid !== this.user.id || friends.expires < (new Date()).getTime()) {
-                                                                                                    _D(f, 'W:saved friend status is outdated / from another user',friends.userid,'!=', this.user.id, 'clearing!');
+    var friends;
+    if ((friends = this.getvalue(':FRIENDS:', false))) {
+      if ((!friends.hasOwnProperty('expires') && !friends.hasOwnProperty('fetchexpires')) || !friends.hasOwnProperty('packets') || 
+           friends.userid !== this.user.id || friends.expires < (new Date()).getTime()) {
+                                                                                                    _D(f, 'W:saved friend status is outdated, invalid or from another user',friends.userid,'!=', this.user.id, 'clearing!');
         this.clearfriends();
         this.poll('fetchfriends');
         return true;
       }
-      if ((friends.expires > this.friends.expires) || //is saved friend status newer than loaded   or 
-          (friends.fetching && this.friends.loadedpacket < friends.packets && friends.fetchexpires > this.friends.expires)  //is saved friend status partial and not fully loaded
-         ) 
-       {
-        this.friends.loading = true; 
-        //resume last fetch, if was incomplete
-        if (!this.friends.loadingexpires || //not an incomplete fetch
-            ((!friends.fetching && this.friends.loadingexpires !== friends.expires) || 
-             (friends.fetching && this.friends.loadingexpires !== friends.fetchexpires))) 
-         { 
-          //assure we do not load friend status from different saved versions (e.g. when saved in other tab while loading here)
-          this.friends.loadingexpires = friends.fetching ? friends.fetchexpires : friends.expires;
-          this.friends.loadedpacket = 0;
-          this.friends.fids = {};
-          if (friends.fetchexpires < (new Date()).getTime()) {
-                                                                                                    _D(f, 'W:found outdated partially fetched friends, clearing');
-            this.clearfriends();
-            this.friends.fetchedpackets = this.friends.loadedpacket = 0;
-            this.poll('fetchfriends');
-            return true;
-          }          
-          if (!this.friends.expires && friends.packets > 10) {
-            this.showmessage('Tweetfilter is loading friends,<br> you can use <b>show friend status</b> very soon...', {timeout: 4200});
-          }
-        }
-        
-        if (this.friends.loadedpacket < friends.packets) {
-                                                                                                    _D(f, 'getting packet', this.friends.loadedpacket);
-          var packet = this.unpack(this.getvalue(':FRIENDS:'+this.friends.loadedpacket, false, false)), uids, u, uv, i, umax;
-          if (packet) { 
-                                                                                                    _D(f, 'packet', this.friends.loadedpacket, 'successfully loaded');
-            for (i=0;i<3;i++) {
-              uv = i > 1 ? 4 : i+1; //1=following,2=follower,4=mutual
-              if (packet[i]) { 
-                uids = packet[i].split(',');  
-                for (u=0,umax=uids.length;u<umax;u++) this.friends.fids[this.decodenum(uids[u])] = uv; 
-              }
-            }
-            this.friends.loadedpacket++;
-                                                                                                    _D(f, 'repoll: load next packet');
-            return false; 
-          } else if (friends.fetching) { 
-                                                                                                    _D(f, 'W:failed to get next packet, is partially saved. loaded',this.loadedpacket-1,'packets');
-            this.poll('fetchfriends')
-                                                                                                    _D(f, 'stop polling loadfriends, let fetchfriends take over');
-            return true; 
-          } else { 
-                                                                                                    _D(f, 'corrupt friend status:clean up, refetch from api');
-            this.clearfriends();
-            this.poll('fetchfriends');
-            return true;
-          }
-        } else { 
-                                                                                                    _D(f, 'friends have been successfully loaded from dom storage');
-          this.friends.expires = friends.expires;
-          this.friends.uids = this.friends.fids;
-          this.friends.fids = {};
-          this.friends.loading = false;
-          if (this.friends.loadedpacket > 10) {
-            this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
-          }
-          this.poll(['refreshoptions', 'refreshfriendscss']);
-                                                                                                    _D(f, 'stop polling this function');
-          return true; 
-        }
-      } else if (friends.fetching) {
-                                                                                                    _D(f, 'I:resuming fetch, next cursor:', friends.nextcursor, ', current cursor:', friends.currentcursor);
-        this.friends.loading = true;
-        this.friends.fetchedpackets = this.friends.loadedpacket;
-        this.friends.loadedpacket = 0;
-        this.setvalue(':FRIENDS:', friends);
-        this.poll('fetchfriends');
-      } 
-      return true; 
-                                                                                                    _D(f, 'loaded friend status is up to date');
-    } else if (!this.friends.expires) { 
+    } else {
                                                                                                     _D(f, 'no saved and no loaded friend status, trigger fetchfriends');
       this.poll('fetchfriends');
       return true;
-    } else { 
-                                                                                                    _D(f, 'loaded friend status and no saved friend status. invalid state, may be updating in another tab. try later.');
-      return true;
     }
+    if ((friends.expires > this.friends.expires) || //is saved friend status newer than loaded   or 
+        (friends.fetching && this.friends.loadedpacket < friends.packets && friends.fetchexpires > this.friends.expires)  //is saved friend status partial and not fully loaded
+       ) 
+     {
+      this.friends.loading = true; 
+      //resume last fetch, if was incomplete
+      if (!this.friends.loadingexpires || //not an incomplete fetch
+          ((!friends.fetching && this.friends.loadingexpires !== friends.expires) || 
+           (friends.fetching && this.friends.loadingexpires !== friends.fetchexpires))) 
+       { 
+        //assure we do not load friend status from different saved versions (e.g. when saved in other tab while loading here)
+        this.friends.loadingexpires = friends.fetching ? friends.fetchexpires : friends.expires;
+        this.friends.loadedpacket = 0;
+        this.friends.fids = {};
+        if (friends.fetchexpires < (new Date()).getTime()) {
+                                                                                                  _D(f, 'W:found outdated partially fetched friends, clearing');
+          this.clearfriends();
+          this.friends.fetchedpackets = this.friends.loadedpacket = 0;
+          this.poll('fetchfriends');
+          return true;
+        }          
+        if (!this.friends.expires && friends.packets > 10) {
+          this.showmessage('Tweetfilter is loading friends,<br> you can use <b>show friend status</b> very soon...', {timeout: 4200});
+        }
+      }
+
+      if (this.friends.loadedpacket < friends.packets) {
+                                                                                                  _D(f, 'getting packet', this.friends.loadedpacket);
+        var packet = this.unpack(this.getvalue(':FRIENDS:'+this.friends.loadedpacket, false, false)), uids, u, uv, i, umax;
+        if (packet) { 
+                                                                                                  _D(f, 'packet', this.friends.loadedpacket, 'successfully loaded');
+          for (i=0;i<3;i++) {
+            uv = i > 1 ? 4 : i+1; //1=following,2=follower,4=mutual
+            if (packet[i]) { 
+              uids = packet[i].split(',');  
+              for (u=0,umax=uids.length;u<umax;u++) this.friends.fids[this.decodenum(uids[u])] = uv; 
+            }
+          }
+          this.friends.loadedpacket++;
+                                                                                                  _D(f, 'repoll: load next packet');
+          return false; 
+        } else if (friends.fetching) { 
+                                                                                                  _D(f, 'W:failed to get next packet, is partially saved. loaded',this.loadedpacket-1,'packets');
+          this.poll('fetchfriends')
+                                                                                                  _D(f, 'stop polling loadfriends, let fetchfriends take over');
+          return true; 
+        } else { 
+                                                                                                  _D(f, 'corrupt friend status:clean up, refetch from api');
+          this.clearfriends();
+          this.poll('fetchfriends');
+          return true;
+        }
+      } else { 
+                                                                                                  _D(f, 'friends have been successfully loaded from dom storage');
+        this.friends.expires = friends.expires;
+        this.friends.uids = this.friends.fids;
+        this.friends.fids = {};
+        this.friends.loading = false;
+        if (this.friends.loadedpacket > 10) {
+          this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
+        }
+        this.poll(['refreshoptions', 'refreshfriendscss']);
+                                                                                                  _D(f, 'stop polling this function');
+        return true; 
+      }
+    } else if (friends.fetching) {
+                                                                                                  _D(f, 'I:resuming fetch, next cursor:', friends.nextcursor, ', current cursor:', friends.currentcursor);
+      this.friends.loading = true;
+      this.friends.fetchedpackets = this.friends.loadedpacket;
+      this.friends.loadedpacket = 0;
+      this.setvalue(':FRIENDS:', friends);
+      this.poll('fetchfriends');
+    } 
+    return true; 
   };
   
   //fetch friends from api, used by refreshfriends. don't call this function directly.
   Tweetfilter.prototype.fetchfriends = function() {
                                                                                                     var f=_F('fetchfriends');
     var friends = this.getvalue(':FRIENDS:', {});
-    
-    
-    if (!friends.fetching || friends.expires < (new Date()).getTime()) {
-                                                                                                    _D(f, 'W:Friends are out of date, initializing full fetch!', friends);
+    if (!friends.fetching) {
+      if (friends.expires && friends.expires < (new Date()).getTime()) {
+        this.clearfriends();
+        friends = {};
+      }
+                                                                                                      _D(f, 'W:Friends are out of date, initializing full fetch!', friends);
       friends.fetching = 'friendIds';
       friends.nextcursor = '-1';
       friends.currentcursor = '0';
@@ -2116,8 +2114,10 @@ var TweetfilterPrototype = function() {
       var currentuser = twttr.currentUser;
       var peoplecount = currentuser.followersCount + currentuser.friendsCount;
       //<debug>
-      //currentuser = twttr.API.User.find(this.user.name);  //by setting a different name in refreshuser() pretend to be someone else, for debug
-      //peoplecount = 200000;
+      if (currentuser.idStr !== this.user.id) { 
+        currentuser = twttr.API.User.find(this.user.name);  //by setting a different name in refreshuser() pretend to be someone else, for debug
+        peoplecount = 20000;
+      }
       //</debug>
       if (friends.fetching === 'friendIds' && friends.currentcursor === '-1' && !this.friends.expires) {
         if (peoplecount > 1000420) {
@@ -2180,7 +2180,7 @@ var TweetfilterPrototype = function() {
               //return; //uncomment to quit after following have been fetched to test load resume
                                                                                                     _D(f, 'switched to', friends.fetching,  ', set cursor to:', friends.nextcursor, ', now polling');
               this.poll('fetchfriends');
-            }else { //finished fetching friendids and followerids
+            } else { //finished fetching friendids and followerids
                                                                                                     _D(f, 'I:finished fetching friendids and followerids');
               if (peoplecount > 42000 && !this.friends.expires) {
                 this.showmessage('Tweetfilter finished loading friends.', {timeout: 4200});
@@ -2197,7 +2197,7 @@ var TweetfilterPrototype = function() {
               }
               friends = {
                 userid: this.user.id,
-                expires: (new Date()).getTime()+(h*60*60*1000),
+                expires: (new Date()).getTime()+ (h*60*60*1000),
                 packets: this.friends.fetchedpackets
               };
               this.friends.expires = friends.expires;
@@ -2218,13 +2218,9 @@ var TweetfilterPrototype = function() {
           }
         }).bind(this),
         error : (function() {
-          this.friends.errors++;
-          if (this.friends.errors < 5) {
-            this.poll('fetchfriends');
-          } else {
-            this.friends.restartat = (new Date()).getTime() + (15 * 60 * 1000); //try again in 15min. 
-            this.showmessage('Failed fetching friends. Retrying again later.');
-          }
+          this.clearfriends();
+          this.friends.restartat = (new Date()).getTime() + (15 * 60 * 1000); //try again in 15min. 
+          this.showmessage('Failed fetching friends. Retrying again later.');
         }).bind(this)
       });
     }
