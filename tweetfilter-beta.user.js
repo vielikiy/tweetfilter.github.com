@@ -1900,9 +1900,11 @@ var TweetfilterPrototype = function() {
   //fetch friends from api, used by refreshfriends. don't call this function directly.
   Tweetfilter.prototype.fetchfriends = function() {
     var friends = this.getvalue(':FRIENDS:', {});
-    
-    
-    if (!friends.fetching || friends.expires < (new Date()).getTime()) {
+    if (!friends.fetching) {
+      if (friends.expires && friends.expires < (new Date()).getTime()) {
+        this.clearfriends();
+        friends = {};
+      }
       friends.fetching = 'friendIds';
       friends.nextcursor = '-1';
       friends.currentcursor = '0';
@@ -1989,7 +1991,7 @@ var TweetfilterPrototype = function() {
               }
               friends = {
                 userid: this.user.id,
-                expires: (new Date()).getTime()+(h*60*60*1000),
+                expires: (new Date()).getTime()+ (h*60*60*1000),
                 packets: this.friends.fetchedpackets
               };
               this.friends.expires = friends.expires;
