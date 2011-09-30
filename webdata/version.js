@@ -1,7 +1,7 @@
 var version = [
  {  
-   'number': '2.0.7',
-   'updated': '2011-09-28',
+   'number': '2.0.8',
+   'updated': '2011-09-30',
    'minified-size': 184031,
    'uncompressed-size': 256231,
    'debug-size': 307742,
