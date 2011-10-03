@@ -1742,8 +1742,8 @@ var TweetfilterPrototype = function() {
               }
               $('span.tweet-actions', item)
                 .after('<span class="tf-actions">'+
-                        '<a class="tf related" data-itemid="'+tweet.tweetid+'" title="Show related Tweets"><span><i class="tf-icon"></i> <b>Show Related Tweets</b></span></a>'+
-                        '<a class="tf mark" data-itemid="'+tweet.tweetid+'" title="Mark as last read"><span><i class="tf-icon"></i> <b>Mark Last Read</b></span></a>'+
+                     //   '<a class="tf related" data-itemid="'+tweet.tweetid+'" title="Show related Tweets"><span><i class="tf-icon"></i> <b>Show Related Tweets</b></span></a>'+
+                     //   '<a class="tf mark" data-itemid="'+tweet.tweetid+'" title="Mark as last read"><span><i class="tf-icon"></i> <b>Mark Last Read</b></span></a>'+
                         '<a class="tf dm" data-user="'+tweet.screenname+'" title="Direct message"><span><i class="tf-icon"></i> <b>DM</b></span></a>'+
                         '<a class="tf quote" title="Classic Retweet"><span><i class="tf-icon"></i> <b>Classic Retweet</b></span></a>'+
                         '<a class="tf menu" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a>'+
