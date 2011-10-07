@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name             Tweetfilter
-// @version          2.0.8
+// @version          2.0.9
 // @namespace        Chilla42o
 // @description      Tweetfilter is a highly customizable timeline filter and feature extension for twitter.com
 // @homepageURL      http://tweetfilter.org
@@ -44,7 +44,7 @@ var TweetfilterPrototype = function() {
     this.color_excluded = '#E5F4AC'; // tweets matching excluded filters
     this.color_me = '#FFFAB4'; // tweets written by current user
     
-    this.version = '2.0.8'; //current visible script version
+    this.version = '2.0.9'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     
     // internal route, page and stream declarations
@@ -363,7 +363,7 @@ var TweetfilterPrototype = function() {
     this.timeids = { //timeout and/or interval ids for special functions
     };
     
-    this.resolvedurls = {  //collected expanded links to allow detail pane link expansion
+    this.cs.resolvedurls = {  //collected expanded links to allow detail pane link expansion
     };
     
     this.tweeplus = {
@@ -711,7 +711,10 @@ var TweetfilterPrototype = function() {
       
       $('.twitter-anywhere-tweet-box-editor').live('focus blur', this.tweetboxfocus.bind(this));
       
-      this.components.latest.callback = this.components.stats.callback = (function(component) {
+      this.components.latest.callback =(function(component) {
+        this.createactivities(component);
+      }).bind(this); 
+      this.components.stats.callback = (function(component) {
         this.createactivities(component);
       }).bind(this);
       $('#search-form').unbind('submit').bind('submit', (function(e) {
@@ -810,13 +813,11 @@ var TweetfilterPrototype = function() {
     }
     var streamid = this.stream.streamid();
     for (var q=0,len=this.queries.length,query;q<len && (query=this.queries[q]);q++) {
-      if (query.stream) {
-        query.active = query.stream === streamid;
-      } else {
-        query.active = true;
-      }
+      query.active = !query.stream || (query.stream === streamid);
     }
-    
+    if (!this.cs.resolvedurls) {
+      this.cs.resolvedurls = {};
+    }
     this.poll(['refreshoptions', 'parseitems', 'parselinks', 'refreshfiltercss', 'refreshlayoutcss',
                'refreshfriendscss', 'refreshfilterlist', 'setstreamtitle']);  
     this.poll('findcomponents', 3);
@@ -1740,9 +1741,13 @@ var TweetfilterPrototype = function() {
                 }
               }
               $('span.tweet-actions', item)
-                .after('<span class="tf-actions"><a class="tf dm" data-user="'+tweet.screenname+'" title="Direct message"><span><i class="tf-icon"></i> <b>DM</b></span></a>'+
+                .after('<span class="tf-actions">'+
+                      //  '<a class="tf related" data-itemid="'+tweet.tweetid+'" title="Show related Tweets"><span><i class="tf-icon"></i> <b>Show Related Tweets</b></span></a>'+
+                      //  '<a class="tf mark" data-itemid="'+tweet.tweetid+'" title="Mark as last read"><span><i class="tf-icon"></i> <b>Mark Last Read</b></span></a>'+
+                        '<a class="tf dm" data-user="'+tweet.screenname+'" title="Direct message"><span><i class="tf-icon"></i> <b>DM</b></span></a>'+
                         '<a class="tf quote" title="Classic Retweet"><span><i class="tf-icon"></i> <b>Classic Retweet</b></span></a>'+
-                        '<a class="tf menu" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a></span>')
+                        '<a class="tf menu" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a>'+
+                        '</span>')
                 .before('<a class="tf-timestamp" href="/#!/'+tweet.username+'/status/'+tweet.tweetid+'" title="'+tweet.localtime.timestamp+'">'+tweet.localtime.prettytimestamp+'</a> '+
                         '<span class="tf-usertime" title="'+tweet.localtime.timezone+'">'+tweet.localtime.time+'</span> '+
                         '<span class="tf-via">via '+tweet.via+'</span>');
@@ -1819,6 +1824,9 @@ var TweetfilterPrototype = function() {
   
   
   Tweetfilter.prototype.loadfriends = function() { //load friends until finished, poll fetchfriends if not fully loaded
+    if (this.friends.disabled) {
+      return true;
+    }
     var friends;
     if ((friends = this.getvalue(':FRIENDS:', false))) {
       if ((!friends.hasOwnProperty('expires') && !friends.hasOwnProperty('fetchexpires')) || !friends.hasOwnProperty('packets') || 
@@ -1899,6 +1907,7 @@ var TweetfilterPrototype = function() {
   
   //fetch friends from api, used by refreshfriends. don't call this function directly.
   Tweetfilter.prototype.fetchfriends = function() {
+    if (this.friends.disabled) return true;
     var friends = this.getvalue(':FRIENDS:', {});
     if (!friends.fetching) {
       if (friends.expires && friends.expires < (new Date()).getTime()) {
@@ -2010,9 +2019,13 @@ var TweetfilterPrototype = function() {
           }
         }).bind(this),
         error : (function() {
-          this.clearfriends();
-          this.friends.restartat = (new Date()).getTime() + (15 * 60 * 1000); //try again in 15min. 
-          this.showmessage('Failed fetching friends. Retrying again later.');
+          if (this.friends.errors++ > 2) {
+            this.clearfriends();
+            this.friends.restartat = (new Date()).getTime() + (15 * 60 * 1000); //try again in 15min. 
+            this.showmessage('Failed fetching friends. Retrying again later.');
+          } else {
+            this.poll('fetchfriends');
+          }
         }).bind(this)
       });
     }
@@ -2535,13 +2548,14 @@ var TweetfilterPrototype = function() {
         linkdata = $(e.target).data('tf'),
         target = href;
     if (linkdata && this.getoption('expand-link-targets')) {
-      if (linkdata.expandedurl && linkdata.expandedurl.indexOf('\u2026')===-1) {
-        target = linkdata.expandedurl;
+      if (linkdata.longurl && linkdata.longurl.indexOf('\u2026')===-1) {
+        target = linkdata.longurl;
       }
       if (target.indexOf('://')===-1) {  //workaround for twitter behaviour cutting off protocol from link
         target = 'http://'+target;
       }
     }
+    e.preventDefault();
     window.open(target);
     return false;
   };
@@ -2991,15 +3005,18 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.geturldomain = function(url) {
-    url = url.split('://');
+ /*   url = url.split('://');
     if (url.length === 2) {
       if (url[1].indexOf('/') > -1) {
         return url[1].substr(0, url[1].indexOf('/'));
       }
       return url[1];
     } 
+    return false; */
+    if ((url = url.match(/:\/\/(.[^/]+)/))) {
+      return url[1];
+    }
     return false;
-//    return url.match(/:\/\/(.[^/]+)/)[1] || false;
   };
   
   Tweetfilter.prototype.isexpanded = function(shortened, expanded) {
@@ -3015,8 +3032,8 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.addresolvedurl = function(shortened, expanded) {
     expanded = this.fixexpandedlink(expanded);
     if (this.isexpanded(shortened, expanded)) {
-      if (!this.resolvedurls[shortened] || (this.isexpanded(this.resolvedurls[shortened], expanded))) {
-        this.resolvedurls[shortened] = expanded;
+      if (!this.cs.resolvedurls[shortened] || (this.isexpanded(this.cs.resolvedurls[shortened], expanded))) {
+        this.cs.resolvedurls[shortened] = expanded;
       } else {
         
       }
@@ -3026,8 +3043,8 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.resolveurl = function(shortened) {
     var expanded = shortened;
-    while (this.resolvedurls.hasOwnProperty(expanded)) {
-      expanded = this.resolvedurls[expanded];
+    while (this.cs.resolvedurls.hasOwnProperty(expanded)) {
+      expanded = this.cs.resolvedurls[expanded];
     }
     return expanded;
   };
@@ -3071,7 +3088,7 @@ var TweetfilterPrototype = function() {
         
         if (showexpanded) {
           linkdata.displayurl = linkdata.resolvedurl;
-          if (!linkdata.tweeplus && linkdata.resolvedurl.indexOf('://tweeplus.com')>-1 && 
+          if (linkdata.resolvedurl.indexOf('://tweeplus.com')>-1 && 
             linkdata.resolvedurl.indexOf('\u2026')===-1 &&
             linkdata.resolvedurl.match(/^(https?:\/\/)?tweeplus\.com\/?[\?#].+/)) 
           {
@@ -3223,7 +3240,7 @@ var TweetfilterPrototype = function() {
       '<div id="tf" style="display:none">',
         '<div class="tf-header">',
           '<div id="tf-stream-nav">',
-             '<a class="top" title="to the top" href="#" onclick="window.scrollTo(0,0); return false;"><i></i><b></b></a>'+
+             '<a class="top" title="to the top" href="#"><i></i><b></b></a>'+
              '<a class="layout" data-option="filter-minimized" title="toggle Tweetfilter layout"><i class="tf-icon"></i></a>'+
              '<a class="bottom" title="to the bottom" href="#"><i></i><b></b></a>'+
           '</div>',
@@ -3284,6 +3301,9 @@ var TweetfilterPrototype = function() {
           '</li>',
           '<li class="tf-tab">',
             '<a data-tab="customize">Customize</a>',
+          '</li>',
+          '<li class="tf-tab">',
+            '<a data-tab="about">About</a>',
           '</li>',
         '</ul>',
         '<div data-tab="filters" class="tf-tab-filters tweetstream filteractive">',
@@ -3389,17 +3409,6 @@ var TweetfilterPrototype = function() {
               '<li class="tweetstream"><a data-option="enable-tweeplus" title="use twee+ for posting long tweets, expand Tweets in details pane"><b></b>enable twee+ support</a></li>',
               '<li><a title="drag to your favorites bar" id="tf-export-settings">Tweetfilter settings</a></li>',
             '</ul>',
-            '<div class="about">',
-              '<ul>',
-                '<li class="version">Tweetfilter '+this.version+' <span>11-09-30</span></li>',
-                '<li class="website"><a href="http://tweetfilter.org/" target="_blank">Visit website</a></li>',
-                '<li class="follow"><a href="#">Follow @tweetfilterjs</a></li>',
-                '<li class="support"><a href="#" target="_blank">Show \u2665</a></li>',
-              '</ul>',
-            '</div>',
-            '<div class="support">',
-              '<p>Thanks for supporting Tweetfilter!</p>',
-            '</div>',
           '</div>',
           '<div data-tab="beta">',
             '<ul class="checks">',
@@ -3407,6 +3416,23 @@ var TweetfilterPrototype = function() {
               '<li class="tweetstream"><a data-option="enable-richtext" title="enable rich text editor for new Tweets"><b></b>enable rich text editor</a></li>',
             '</ul>',
           '</div>',
+        '</div>',
+        '<div data-tab="about" class="about">',
+          '<p class="version">',
+            '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
+            '<span class="updated">11-10-07</span> ',
+            '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Install new version</a>',
+          '</p>',
+          '<p class="update">',
+            '<a href="http://tweetfilter.org/#whatsnew" target="_blank">See last updates</a><br />',
+            '<a href="#">Follow @tweetfilterjs</a><br />',
+            '<a href="#">Show \u2665</a>',
+          '</p>',
+          '<p class="support">',
+            '<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues" target="blank">Report a bug</a><br />',
+            '<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues" target="blank">Feature request</a><br />',
+            '<a href="http://tweetfilter.org/#support" target="blank">Support this project</a>',
+          '</p>',
         '</div>',
       '</div>'
       ].join("\n")
@@ -3450,7 +3476,7 @@ var TweetfilterPrototype = function() {
       '#tf ul.tf-filters a[data-option] > i { font-style:normal; color:@darktext; font-size:11px; display:block; text-align:center; }',
       '#tf ul.tf-filters a[data-option] > b { font-size:11px; display:block; text-align:center; color:@link; }',
       '#tf ul.tf-filters a.checked[data-option] { background: #f5f5f5; text-decoration: none; }',
-      '#tf ul.tf-filters a.checked[data-option] > i { color:@lighttext; /*text-decoration:line-through;*/ }',
+      '#tf ul.tf-filters a.checked[data-option] > i { color:@lighttext; text-decoration:line-through; }',
       '#tf ul.tf-filters a[data-option="filter-inverted"] { color: @lighttext; background:#f5f5f5; }',
       '#tf ul.tf-filters a.checked[data-option="filter-inverted"] { background: @link:0.2 !important; color:@link !important; }',
       '#tf ul.tf-filters a.checked[data-option="filter-inverted"] > i { color:@link; text-shadow:0 1px 0 #fff; text-decoration:none; }',
@@ -3467,7 +3493,7 @@ var TweetfilterPrototype = function() {
       /* inverted - passed switch and filter states when inverted */
       '#tf.inverted ul.tf-filters a[data-option] { background: #f5f5f5; }',
       '#tf.inverted ul.tf-filters a[data-option] > b { color:#999; }',
-      '#tf.inverted ul.tf-filters a[data-option] > i { color:@lighttext; /*text-decoration:line-through;*/ }',
+      '#tf.inverted ul.tf-filters a[data-option] > i { color:@lighttext; }',
       '#tf.inverted ul.tf-filters a.checked[data-option] { background: #fff; }',
       '#tf.inverted ul.tf-filters a.checked[data-option] > b { color:@link !important; }',
       '#tf.inverted ul.tf-filters a.checked[data-option] > i { color:@darktext; text-decoration:none; }',
@@ -3477,10 +3503,10 @@ var TweetfilterPrototype = function() {
       /*exclusive filter mode */
 
       '#tf.exclusive ul.tf-filters a[data-option] { background: #f5f5f5 !important; }',
-      '#tf.exclusive ul.tf-filters a[data-option] > i, #tf.exclusive.inverted ul.tf-filters a[data-option] > i { color:@lighttext !important; }',
-      '#tf.exclusive ul.tf-filters a[data-option] > b, #tf.exclusive.inverted ul.tf-filters a[data-option] > b { color:@lighttext !important; }',
-      '#tf.exclusive ul.tf-filters a[data-option].exclusive { background: @link:0.2 !important; color:@link !important; }',
-      '#tf.exclusive ul.tf-filters a[data-option].exclusive > i { color:@link !important; text-shadow:0 1px 0 #fff; }',
+      '#tf.exclusive ul.tf-filters a[data-option] > i, #tf.exclusive.inverted ul.tf-filters a[data-option] > i { color:@lighttext !important;  text-decoration:none; }',
+      '#tf.exclusive ul.tf-filters a[data-option] > b, #tf.exclusive.inverted ul.tf-filters a[data-option] > b { color:@lighttext !important; text-decoration:none; }',
+      '#tf.exclusive ul.tf-filters a[data-option].exclusive { background: @link:0.2 !important; color:@link !important; text-decoration:none !important; }',
+      '#tf.exclusive ul.tf-filters a[data-option].exclusive > i { color:@link !important; text-shadow:0 1px 0 #fff; text-decoration:none !important; }',
       '#tf.exclusive ul.tf-filters a[data-option].exclusive > b[id] { color:@link !important;  text-shadow:0 1px 0 #fff; }',
 
       '#tf .tf-stream { margin: 4px 10px 0 10px; border-bottom:1px solid #fff; }',
@@ -3518,7 +3544,15 @@ var TweetfilterPrototype = function() {
       '#tf div[data-tab].active { display:block !important; }',
       '#tf div[data-tab] fieldset { border:1px solid @lighttext; '+this.css3rounded('3px')+' padding:0 5px 5px 5px; margin:5px 0; }',
       '#tf div[data-tab] label { padding:0 5px; }',
-
+      
+      '#tf div.about { overflow:hidden; }',
+      '#tf div.about a { color:@link; text-decoration:none; }',
+      '#tf div.about a:hover {text-decoration:underline;}',
+      '#tf div.about a.button { padding:2px 3px; vertical-align:bottom; color:@text; text-decoration:none !important; }',
+      '#tf div.about p.support, #tf div.about p.update { float:left; width: 180px; margin-left:10px; padding-bottom:10px;  }',
+      '#tf div.about p.version { float:none; font-size:14px; padding:5px; background:@link:0.1; border:1px solid @link:0.3; '+this.css3rounded('5px')+' margin:5px 10px;  }',
+      '#tf div.about span.updated { color:@lighttext; font-size:12px; margin:0 10px; }',
+      
       '#tf-customize { position:relative; }',
       '#tf-customize > div { padding:5px 12px; }',
 
@@ -3555,14 +3589,7 @@ var TweetfilterPrototype = function() {
       '#tf-customize ul.checks > li > a:hover { color: @link !important; }',
 
       '#tf-export-settings { cursor:move; border:1px solid #eee; border-left:3px solid @link; '+this.css3shadow('2px', '@darktext')+' left:auto !important; right:auto !important; padding-left:5px; text-indent:0 !important; padding-right:5px; }',
-      '#tf div.about { padding: 10px 0 0 0; overflow:hidden; border-top:1px solid #eee; margin-top: 10px; }',
-      '#tf div.about ul li { float:right; margin-left: 8px; font-size: 11px; }',
-      '#tf div.about ul li.version { float:left; margin-left:0; }',
-      '#tf div.about ul li.version span { color: #aaa; font-size:9px; margin-left:5px; }',
-      '#tf div.about ul li a { color:@link; text-decoration:none; }',
-      '#tf div.about ul li a.tweet { display:inline-block; height:15px; width:42px; overflow:hidden; text-indent:-100px; }',
-      '#tf div.about ul li a:hover { text-decoration:underline; }',
-      '#tf div.support { display:none; }',
+      
       '#tf .tf-scroll { margin:5px 5px; overflow:auto; max-height:160px; display:none; }',
 
       '.stream-title h2 em { color: @link; font-style:normal; }',
@@ -3591,9 +3618,9 @@ var TweetfilterPrototype = function() {
       '#message-drawer a.x { background: none repeat scroll 0 0 #F8F8F8; color: #999999; display: inline-block; font-family: Tahoma; font-size: 12px; font-weight: bold; height: 22px; margin: -5px -10px -10px 10px;  padding: 3px 3px 2px; }',         
       '#message-drawer a.x:hover { color:#666; text-decoration:none; }',
       /* add to filter menu */
-      '.tweet-actions, .tf-actions { position:absolute; right:64px; bottom:-5px; font-size:11px; }',
+      '.tweet-actions, .tf-actions { position:absolute; right:-5px; bottom:-5px; font-size:11px; }',
       '.pane-components .tweet-actions { right: -5px; }',
-      '.tf-actions { right: -5px; visibility:hidden; display:block; }',
+      '.tf-actions { right: 64px; visibility:hidden; display:block; }',
       '.stream-tweet:hover .tf-actions, .focused-stream-item .stream-tweet .tf-actions { visibility:visible; }',
       '.tweet-actions a span b, .tf-actions a span b { display:none; }',
       '.tf-actions a { outline:0 !important; text-decoration:none !important; }',
@@ -3838,10 +3865,15 @@ var TweetfilterPrototype = function() {
       }).bind(this))
       .delegate('a.bottom', 'click', (function() {
         try {
+
           var h = document.documentElement.scrollHeight - document.documentElement.clientHeight; 
-          window.scrollTo(0, h); 
-          this.cs.getMoreOldItems();
+         // this.cs.getMoreOldItems();
+          $('html,body').animate({scrollTop: h});
         } catch(e) {}
+        return false;
+      }).bind(this))
+      .delegate('a.top', 'click', (function() {
+        $('html,body').animate({scrollTop: 0});
         return false;
       }).bind(this))
       .delegate('#tf-export-settings', 'mouseenter', (function() {
@@ -4093,7 +4125,18 @@ var TweetfilterPrototype = function() {
         hidden = hidden.concat(this.cs.filter.media);
       }
     }
+    //clean up filter matches index
+    walkmatches: for (var matchindex in this.cs.filter.matches) {
+      for (var qi=0;qi<this.queries.length;qi++) {
+        if (this.queries[qi].index == matchindex && this.queries[qi].active) {
+          continue walkmatches;
+        }
+      }
+      delete this.cs.filter.matches[matchindex];
+    }
+    //rebuild excluded, hidden & passed index
     for (var q=0, query, qmax=this.queries.length; q<qmax && (query=this.queries[q]); q++) {
+      if (!query.active) continue;
       matchcount = 0;
       if (query.user && !query.regular && this.cs.filter.users.hasOwnProperty(query.search) && (matchcount=this.cs.filter.users[query.search].length) && matchcount) { //user filter: count tweets by this user
         if (query.enabled && query.excluded && !exclusivemode) { //excluded do not count in exclusivemode
