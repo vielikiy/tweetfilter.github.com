@@ -3420,13 +3420,13 @@ var TweetfilterPrototype = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-10-07</span> ',
+            '<span class="updated">11-10-08</span> ',
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Install new version</a>',
           '</p>',
           '<p class="update">',
             '<a href="http://tweetfilter.org/#whatsnew" target="_blank">See last updates</a><br />',
-            '<a href="#">Follow @tweetfilterjs</a><br />',
-            '<a href="#">Show \u2665</a>',
+            '<a href="#" class="follow">Follow @tweetfilterjs</a><br />',
+            '<a href="#" class="love">Show \u2665</a>',
           '</p>',
           '<p class="support">',
             '<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues" target="blank">Report a bug</a><br />',
@@ -3885,7 +3885,7 @@ var TweetfilterPrototype = function() {
       .delegate('#tf-export-settings', 'click', function() {
         return false;
       })
-      .delegate('li.support > a', 'click', (function() {
+      .delegate('a.love', 'click', (function() {
         new twttr.widget.TweetDialog({
           modal: false,
           draggable: true,
@@ -3896,7 +3896,7 @@ var TweetfilterPrototype = function() {
           origin: "Tweetfilter "+this.version
         }).open().focus();        
       }).bind(this))
-      .delegate('li.follow > a', 'click', (function() {
+      .delegate('a.follow ', 'click', (function() {
         twttr.currentUser.isFollowing('tweetfilterjs', (function(isfollowing) {
           if (!isfollowing) {
             var tweetfilterjs = twttr.API.User.find('tweetfilterjs');
