@@ -3005,14 +3005,6 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.geturldomain = function(url) {
- /*   url = url.split('://');
-    if (url.length === 2) {
-      if (url[1].indexOf('/') > -1) {
-        return url[1].substr(0, url[1].indexOf('/'));
-      }
-      return url[1];
-    } 
-    return false; */
     if ((url = url.match(/:\/\/(.[^/]+)/))) {
       return url[1];
     }
@@ -3034,6 +3026,9 @@ var TweetfilterPrototype = function() {
     if (this.isexpanded(shortened, expanded)) {
       if (!this.cs.resolvedurls[shortened] || (this.isexpanded(this.cs.resolvedurls[shortened], expanded))) {
         this.cs.resolvedurls[shortened] = expanded;
+        if (expanded.indexOf('tweeplus.com') > -1) {
+          
+        }
       } else {
         
       }
@@ -3099,7 +3094,7 @@ var TweetfilterPrototype = function() {
         link.html(linkdata.shorturl);
         linkdata.displayurl = linkdata.shorturl;
       }
-      if (linkdata.resolvedurl && linkdata.longurl && linkdata.resolvedurl != linkdata.longurl) { //has link been expanded since last run
+      if (linkdata.resolvedurl != linkdata.longurl) { //has link been expanded since last run
         
         var itemid, id = -1;
         var item = link.closest('div.stream-item[data-item-id]');
@@ -3129,7 +3124,7 @@ var TweetfilterPrototype = function() {
               } 
               if (textcontainer.length) {
                 textcontainer.data('tf-tweeplus-encoded', textcontainer.html()).addClass('tf-tweeplus-expanded');
-                textcontainer.html(twttr.util.linkify(longtext).replace(/\n/g,'<br />'));
+                textcontainer.html(twttr.util.linkify(this.encodehtml(longtext)).replace(/\n/g,'<br />'));
               }
             } else if (id > -1) {
               this.cs.filter.items[id].text += "\n"+linkdata.longurl.toLowerCase();
@@ -3418,7 +3413,7 @@ var TweetfilterPrototype = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-10-09</span> ',
+            '<span class="updated">11-10-10</span> ',
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Install new version</a>',
           '</p>',
           '<p class="update">',
@@ -3534,7 +3529,7 @@ var TweetfilterPrototype = function() {
       
       '#tf .tf-addtofilter { padding: 5px;  background:#f5f5f5; border:1px solid #eee; border-style:solid none; }',
       '#tf .tf-addtofilter p.advanced { padding-top:5px; }',
-      '#tf .tf-addtofilter select { width:110px; }',
+      '#tf .tf-addtofilter select { width:110px; font-size:11px; }',
       '#tf .tf-addtofilter input[type=text] { border:1px solid @lighttext; color:@lighttext; width: 202px; '+this.css3rounded('2px')+' }',
       '#tf .tf-addtofilter input[type=text].active { border-color: @darktext; color:@darktext !important; border-color:@link !important; '+this.css3shadow('3px', '@link')+' }',
       
@@ -3684,7 +3679,7 @@ var TweetfilterPrototype = function() {
       'body.tf-hide-topbar div#top-stuff[data-over="1"] div#top-bar,',
       'body.tf-hide-topbar div#top-stuff[data-focused="1"] div#top-bar-bg,',
       'body.tf-hide-topbar div#top-stuff[data-focused="1"] div#top-bar { visibility:visible; }',
-      'body.tf-hide-topbar div#page-outer { padding-top: 25px; }',
+      'body.tf-hide-topbar div#page-outer { padding-top: 15px !important; }',
       'body.tf-hide-topbar div#details-pane-outer { margin-top:0 !important; top: 25px !important; }',
       'div#details-pane-outer.tracking-vertically { position:fixed; }',
       'div.details-pane { min-width:380px !important; }',
