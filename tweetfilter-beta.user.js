@@ -532,7 +532,7 @@ var TweetfilterPrototype = function() {
                 for (var p in this._stream.params) {
                   if (this.cs.params.hasOwnProperty(p)) {
                     if ((typeof this.cs.params[p] === 'string' && this.cs.params[p].toLowerCase() !== this._stream.params[p].toLowerCase()) || 
-                       (this.cs.params[p] != this._stream.params[p])) {
+                       (typeof this.cs.params[p] !== 'string' && this.cs.params[p] != this._stream.params[p])) {
                       throw 'streamparamsnotswitched';
                     }
                   }
