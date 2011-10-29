@@ -263,6 +263,7 @@ var TweetfilterPrototype = function() {
       'filter-links': false,    /* filter all tweets with links */
       'filter-retweets': false, /* filter all retweets */
       'filter-media': false,    /* filter all media */
+      'filter-classicrts': false,  /* treat classic rts like new style rts */
       'hide-promoted-tweets': false,  /* always hide promoted tweets */
       'hide-promoted-content': false, /* hide promoted content in the dashboard */
       'show-navigation': true,  /* show draggable top/bottom link menu */
@@ -529,8 +530,11 @@ var TweetfilterPrototype = function() {
                   throw 'streamnamespacenotswitched';
                 }                                                                                      
                 for (var p in this._stream.params) {
-                  if (this.cs.params.hasOwnProperty(p) && this.cs.params[p].toLowerCase() !== this._stream.params[p].toLowerCase()) {
-                    throw 'streamparamsnotswitched';
+                  if (this.cs.params.hasOwnProperty(p)) {
+                    if ((typeof this.cs.params[p] === 'string' && this.cs.params[p].toLowerCase() !== this._stream.params[p].toLowerCase()) || 
+                       (this.cs.params[p] != this._stream.params[p])) {
+                      throw 'streamparamsnotswitched';
+                    }
                   }
                 }
                 //special fix for mode parameter which is not set in route parameters but is set in cachekey for the stream (decider switches first mode to default "Top")
@@ -870,6 +874,8 @@ var TweetfilterPrototype = function() {
     this.enableoption(['skip-me'], !filterdisabled && !exclusivemode && this.stream.istweets() && !this.stream.ismytweets());
     this.enableoption(['hide-last'], this._page === 'Home');
     this.enableoption(['expand-last'], this._page === 'Home' && !this.options['hide-last']);
+    this.enableoption(['hide-tweetbox'], this._page === 'Home' && this.stream.istweets());
+    this.enableoption(['hide-question'], this._page === 'Home' && this.stream.istweets() && !this.options['hide-tweetbox']);
     this.enableoption(['copy-expanded'], this.options['expand-links']);
     this.enableoption(['add-selection'], !filterdisabled && this.stream.istweets() );
     this.enableoption(['highlight-me'], this.stream.istweets() && !this.stream.ismytweets());
@@ -1269,6 +1275,7 @@ var TweetfilterPrototype = function() {
       case 'skip-mentionsme': /* filter tweets mentioning me */
         this.poll('refreshfilterindex')
       case 'skip-me': /* filter my posts */
+      case 'filter-classicrts':
       case 'filter-replies': /* filter all replies */
       case 'filter-links': /* filter all tweets with links */
       case 'filter-retweets': /* filter all retweets */
@@ -1469,7 +1476,8 @@ var TweetfilterPrototype = function() {
             tweets:[],    //all tweets (custom ids)
             hidden: [],   //tweets currently marked as hidden (during refreshcss(filter))
             replies: [],  //replies and tweets beginning with @mention
-            retweets: [], //retweets in timeline
+            retweets: [], //new style retweets in timeline
+            classicrts: [], //classic retweets in timeline
             media: [],    //tweets containing media
             matches: [],  //tweets matching filter queries, two dimensional index
             excluded: [],  //tweets matching excluded queries, two dimensional index
@@ -1571,7 +1579,7 @@ var TweetfilterPrototype = function() {
                 }
                 if (mention.indices[0] === 0) {
                   tweet.isreply = true; //start of a discussion may not be a reply to a specific tweet, but is still a reply for user's eye, so for the filter
-                } else if (!tweet.rt && mention.indices[0] === 3 && tweet.text.indexOf('rt ')===0) { //possible classic retweet/quote/mention: RT @username
+                } else if (!tweet.rt && mention.indices[0] <= 3 && tweet.text.indexOf('rt')===0) { //possible classic retweet/quote/mention: RT @username
                   tweet.rt = {username: mentioned};
                 }
               }
@@ -1597,7 +1605,13 @@ var TweetfilterPrototype = function() {
             }
             this.cs.filter.tweets.push(tweet.id);
             if (tweet.isreply) this.cs.filter.replies.push(tweet.id);
-            if (tweet.rt) this.cs.filter.retweets.push(tweet.id);
+            if (tweet.rt) {
+              if (tweet.rt.userid) { //new style retweet
+                this.cs.filter.retweets.push(tweet.id);
+              } else { //classic retweet
+                this.cs.filter.classicrts.push(tweet.id);
+              }
+            }
             if (tweet.haslinks) this.cs.filter.links.push(tweet.id);
             if (tweet.isme) this.cs.filter.me.push(tweet.id);
             if (tweet.ispromoted) this.cs.filter.promoted.push(tweet.id);
@@ -1710,7 +1724,7 @@ var TweetfilterPrototype = function() {
               if (htmltext.indexOf("\n") > -1) {
                 tweettext.html(htmltext.replace(/\n/g, ' <br />')); //insert line breaks
               }
-              tweet.ismedia = $("span.icons span.media", item).length > 0;
+              tweet.ismedia = $(".tweet-meta span.media", item).length > 0;
               if (tweet.ismedia) {
                 li = this.cs.filter.links.indexOf(tweet.id);
                 if (li > -1) {
@@ -1748,7 +1762,7 @@ var TweetfilterPrototype = function() {
                         '<a class="tf quote" title="Classic Retweet"><span><i class="tf-icon"></i> <b>Classic Retweet</b></span></a>'+
                         '<a class="tf menu" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a>'+
                         '</span>');
-//                        '<span class="tf-usertime" title="'+tweet.localtime.timezone+'">'+tweet.localtime.time+'</span> '+
+             $('div.via > span.tweet-source:first', item).after(' <span class="tf-usertime" title="'+tweet.localtime.timezone+'">'+tweet.localtime.time+'</span>');
             } else {
               reparseitems = true;      
             }
@@ -3355,6 +3369,7 @@ var TweetfilterPrototype = function() {
               '<li class="filteractive"><a data-option="skip-mentionsme" class="filter" title="do not filter Tweets mentioning me"><b></b>skip mentioning me</a></li>',
               '<li class="filteractive"><a data-option="skip-me" class="filter" title="do not filter Tweets written by me"><b></b>skip my posts</a></li>',
               '<li class="filteractive"><a data-option="add-selection" class="filter" title="add selected text to filter after click"><b></b>add selection to filter</a></li>',
+              '<li class="filteractive"><a data-option="filter-classicrts" class="filter" title="Treat classic Retweets like new Retweets"><b></b>treat classic rt like new rt</a></li>',
               '<li><a data-option="hide-promoted-tweets" title="always hide promoted tweets"><b></b>hide promoted Tweets</a></li>',
               '<li><a data-option="highlight-mentionsme" title="highlight Tweets mentioning me"><b></b>highlight mentioning me</a></li>',
               '<li><a data-option="highlight-me" title="highlight Tweets I wrote"><b></b>highlight my Tweets</a></li>',
@@ -3419,7 +3434,7 @@ var TweetfilterPrototype = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-10-28</span> ',
+            '<span class="updated">11-10-29</span> ',
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Install new version</a>',
           '</p>',
           '<p class="update">',
@@ -3616,22 +3631,22 @@ var TweetfilterPrototype = function() {
       '#message-drawer a.x { background: none repeat scroll 0 0 #F8F8F8; color: #999999; display: inline-block; font-family: Tahoma; font-size: 12px; font-weight: bold; height: 22px; margin: -5px -10px -10px 10px;  padding: 3px 3px 2px; }',         
       '#message-drawer a.x:hover { color:#666; text-decoration:none; }',
       /* add to filter menu */
-      '.pane-components .tweet-actions { right: -5px; }',
-      '.tf-actions { font-size:11px; position:absolute; top:-2px; right:106px; background:#fff; visibility:hidden; padding-right:6px; }',
+      'span.tweet-actions { right: -5px !important; }',
+      'div.open-close-tweet { display:none !important; }',
+      '.tf-actions { font-size:11px; position:absolute; top:-2px; right:58px; background:#fff; visibility:hidden; padding-right:6px; }',
       '.stream-tweet:hover .tf-actions, .focused-stream-item .stream-tweet .tf-actions, .open .tf-actions { visibility:visible; }',
       '.tweet-actions a span b, .tf-actions a span b { display:none !important; }',
       '.tf-actions a { outline:0 !important; text-decoration:none !important; }',
       '.tf-actions a span b { font-weight:400; }',
       '.tf-actions a span i { text-indent:-99999px; background:transparent url(../img/sprite-icons.png) no-repeat; width:15px; height:15px; display:inline-block; vertical-align:baseline; position:relative; margin:0 3px -3px 2px; }',
       '.tf-actions a.tf span b { display:none; }',
-      '.tf-actions a.tf.dm span i { background-position:2px -30px; }',
-      '.tf-actions a.tf.dm:hover span i { background-position:-13px -30px; }',
+      '.tf-actions a.tf.dm span i { background-position:4px -30px; }',
+      '.tf-actions a.tf.dm:hover span i { background-position:-11px -30px; }',
       '.tf-actions a.tf.quote span i { background-position:2px -15px; }',
       '.tf-actions a.tf.quote:hover span i { background-position:-13px -15px; }',
       '.tf-actions a.tf.menu span i { background-position:-15px 1px; }',
       '.tf-actions a.tf.menu:hover span i { background-position:-30px 1px; }',
-
-      '.main-content ul.tf-menu { display:block; width:auto !important; position:absolute; top: 12px; right:106px; left:auto; }',
+      '.main-content ul.tf-menu { display:block; width:auto !important; position:absolute; top: 12px; right:56px; left:auto; }',
       '.main-content ul.tf-menu li { font-size:11px; padding:3px 8px; white-space:nowrap; overflow:hidden; }',
       '.main-content ul.tf-menu li.tf-user a { font-weight:bold; }',
       '.main-content ul.tf-menu li.tf-source a { font-style:italic; }',
@@ -3717,9 +3732,7 @@ var TweetfilterPrototype = function() {
       'body.tf-enable-tweeplus a.tweet-button.disabled { display:none; }',
       'body.tf-enable-tweeplus .tweet-button-sub-container { position:absolute; right:0; }', //fix jumping tweet button container
       'body.tf-show-retweeted div.tweet-row.tf { display:block; }',
-      'body.tf-show-timestamp .main-content a.tweet-timestamp { display:none; }',
       '.main-content a.tf-timestamp { font-size:11px; color:#999 !important; display:none; }',
-      'body.tf-show-timestamp .main-content a.tf-timestamp { display:inline; }',
       'body.tf-hide-promoted-content .promoted-trend,',
       'body.tf-hide-promoted-content .promoted-account { display:none !important; }',
       '.tweet-corner i.tfu { margin-left:-3px; }',
@@ -4097,6 +4110,9 @@ var TweetfilterPrototype = function() {
       if (this.getoption('filter-retweets') && this.cs.filter.retweets.length) {
         hidden = hidden.concat(this.cs.filter.retweets);
       }
+      if (this.getoption('filter-retweets') && this.getoption('filter-classicrts') && this.cs.filter.classicrts.length) {
+        hidden = hidden.concat(this.cs.filter.classicrts);
+      }
       if (this.getoption('filter-replies') && this.cs.filter.replies.length) {
         hidden = hidden.concat(this.cs.filter.replies);
       }
@@ -4110,6 +4126,12 @@ var TweetfilterPrototype = function() {
     } else {
       if (~this.exclusive.indexOf('retweets') && this.cs.filter.retweets.length) {
         hidden = hidden.concat(this.cs.filter.retweets);
+        if (this.getoption('filter-classicrts')) {
+          hidden = hidden.concat(this.cs.filter.classicrts);
+        }
+      }
+      if (~this.exclusive.indexOf('retweets') && this.getoption('filter-classicrts') && this.cs.filter.classicrts.length) {
+        hidden = hidden.concat(this.cs.filter.classicrts);
       }
       if (~this.exclusive.indexOf('replies') && this.cs.filter.replies.length) {
         hidden = hidden.concat(this.cs.filter.replies);
@@ -4245,7 +4267,11 @@ var TweetfilterPrototype = function() {
       $('#tf-count-items').html(this.cs.filter.items.length); //all tweets in timeline
       $('#tf-count-filtered').html(this.cs.filter.hidden.length); //filtered (hidden) tweets
       $('#tf-count-passed').html(this.cs.filter.passed.length); //tweets wich passed all filters
-      $('#tf-count-retweet').html(this.cs.filter.retweets.length);
+      if (this.getoption('filter-classicrts')) {
+        $('#tf-count-retweet').html(this.cs.filter.retweets.length+this.cs.filter.classicrts.length);
+      } else {
+        $('#tf-count-retweet').html(this.cs.filter.retweets.length);
+      }
       $('#tf-count-media').html(this.cs.filter.media.length);
       $('#tf-count-replies').html(this.cs.filter.replies.length);
       $('#tf-count-links').html(this.cs.filter.links.length);
