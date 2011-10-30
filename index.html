@@ -196,7 +196,7 @@
             <h3 id="filter-notes">Notes</h3>
             <ul>
               <li>All filters are <strong>case insensitive</strong>.</li>
-              <li><strong>Tweets mentioning you</strong> will not be added to "filtered" unless you uncheck <strong>skip mentioning me</strong> in
+              <li><strong>Tweets mentioning you</strong> will not be added to "filtered" unless you uncheck <strong>don't hide mentioning me</strong> in
                 the Filter-options (except when in @Mentions or in exclusive mode).</li>
               <li><strong>Your own Tweets</strong> will not be filtered unless you uncheck the option <strong>skip my posts</strong> in the
                 "Filter" options (except when in timelines showing only your Tweets, like in "Your
@@ -243,10 +243,10 @@
             <h2>Options</h2>
             <h3 id="options-filter">Filter</h3>
             <ul>
-              <li><strong>skip mentioning me</strong> will avoid tweets containg an @mention of your username to
+              <li><strong>don't hide mentioning me</strong> will avoid tweets containg an @mention of your username to
                 be hidden from your timeline, even if matching other filters in use. <em>This option is disabled in
                   @Mentions.</em></li>
-              <li><strong>skip my posts</strong> will always show tweets written by you, even if
+              <li><strong>don't hide my posts</strong> will always show tweets written by you, even if
                 matching other active filters you set. This option is disabled in timelines 
                 which show only your own Tweets.</li>
               <li><strong>add selection to filter</strong> enables you to quickly add select
@@ -265,8 +265,6 @@
                 who you follow (<span class="following">gray star</span>), and who is a mutual friend 
                 (<span class="mutual">yellow star</span>), refreshed automatically after half an hour.
               </li>
-              <li><strong>show via in tweets</strong> displays twitter client information in Tweets
-                (which you can filter with via:)</li>
               <li><strong>show line breaks</strong> shows the line breaks in Tweets (like most desktop
                 clients do)</li>
               <li><strong>show Tweet's local time</strong> displays the original time of the tweet (posting user's timezone)</li>
@@ -334,6 +332,20 @@
             <h2>Tweetfilter Updates</h2>
             <div id="whatsnew">
               <div>
+                <h3>2.1.0 <em>2011-10-30</em></h3>
+                <ul>
+                  <li>Twitter Timeline Update: Twitter removed the details pane and added more functionality to the timeline.
+                    <ul>
+                      <li>Removed options <b>show via in tweets</b>, <b>show full timestamp</b> - these are now standard. Tweetfilter adds the <b>retweeter's via</b> in Retweets.</li>
+                      <li>Updated Tweetfilter layout, icons and positioning</li>
+                      <li>Fixed empty timelines (<a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/30" target="_blank">issue #30</a>, 
+                        <a href="https://github.com/Tweetfilter/tweetfilter.github.com/issues/29" target="_blank">issue #29</a>
+                      </li>
+                    </ul>
+                  </li>
+                  <li>Added option <b>treat classic RT like new RT</b> which allows you to exclude or include "RT @user"-style tweets from the Retweets-Filter.</li>
+                  <li>Optimized speed of link expander and user filter</li>
+                </ul>
                 <h3>2.0.9 <em></em></h3>
                 <ul>
                   <li>Improved <strong>expand links</strong> performance and cache handling. Expanded links are now cached on the timeline instead of the Tweetfilter object.</li>
