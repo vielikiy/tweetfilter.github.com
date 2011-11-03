@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name             Tweetfilter
-// @version          2.1.0
+// @version          2.1.1
 // @namespace        Chilla42o
 // @description      Tweetfilter is a highly customizable timeline filter and feature extension for twitter.com
 // @homepageURL      http://tweetfilter.org
@@ -43,7 +43,7 @@ var TweetfilterPrototype = function() {
     this.debug = true; //turn on debug. use firefox with firebug. will be _very_ verbous with standard settings. will probably slow down the script.
                        //if using debug, change _debuglevels, _debugfunctions and _debugskipfunctions to your needs. You may also want to set firebugs log limit to 5000 (500 is default).
     this._debuglevels = 'DLIWE'; //each char is a debug level - include in output (in order of importance): D=Debug, L=Log, I=Info, W=Warning, E=Error, empty string = show only function headers
-    this._debugfunctions = [];//which functions to debug (whitelist). empty array = debug all functions
+    this._debugfunctions = ['refreshfriendscss'];//which functions to debug (whitelist). empty array = debug all functions
     
     this._debugskipfunctions = []; //which functions NOT to debug (blacklist) - only function header is shown. empty array = debug all functions
 // </debug>   
@@ -52,7 +52,7 @@ var TweetfilterPrototype = function() {
     this.color_excluded = '#E5F4AC'; // tweets matching excluded filters
     this.color_me = '#FFFAB4'; // tweets written by current user
     
-    this.version = '2.1.0'; //current visible script version
+    this.version = '2.1.1'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     
     // internal route, page and stream declarations
@@ -275,7 +275,7 @@ var TweetfilterPrototype = function() {
       'hide-promoted-tweets': false,  /* always hide promoted tweets */
       'hide-promoted-content': false, /* hide promoted content in the dashboard */
       'show-navigation': true,  /* show draggable top/bottom link menu */
-//      'show-via': true,         /* show tweet source */
+      'show-via': true,         /* show tweet source */
       'show-usertime': true,    /* show user's local time near tweet time */
       'show-timestamp': true,    /* show user's local time near tweet time */
       'show-tab': true,         /* show "filtered"-tab */
@@ -573,7 +573,7 @@ var TweetfilterPrototype = function() {
                   this.cs._tfbound = true;
                 }
                 if (!this.cs.$node.data('_tfbound')) {
-                  this.cs.$node.delegate('div.stream-item', 'click', (function(e) {return this.tweetclick(e);}).bind(this))
+                  this.cs.$node.delegate('div.stream-item', 'click', (function() {return this.tweetclick();}).bind(this))
                                .delegate('a.tf', 'mousedown click', (function(e) {return this.tweetactionsclick(e);}).bind(this))
                                .delegate('span.tf-via > a', 'mousedown click', (function(e) {return this.tweetclickvia(e);}).bind(this))
                                .delegate('a.reply-action', 'mousedown', (function(e) {this.tweetclickreply(e);}).bind(this))
@@ -730,7 +730,7 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.bindevents = function() {
-                                                                                                    var f=_F('bindevents');
+                                                                                                    var f=_F('linkobjects');
     try {
                                                                                                     _D(f,'trying to link objects');
       if (!this._eventprovider) this._eventprovider = $('<div>');
@@ -1414,7 +1414,7 @@ var TweetfilterPrototype = function() {
       case 'minify-menu':  /* hide optional menu items */
       case 'hide-ad':      /* hide ad */
       case 'fixed-dashboard':  /* fixed dashboard */
-//      case 'show-via': /* show tweet source */
+      case 'show-via': /* show tweet source */
       case 'show-usertime': /* show tweet source */
       case 'show-timestamp': /* show full timestamp instead of ago-time */
       case 'show-br': /* show line breaks in tweets */
@@ -1708,7 +1708,7 @@ var TweetfilterPrototype = function() {
               this.cs.filter.userids[tweet.username] = tweet.userid;
             } 
             if (tweet.rt && tweet.rt.userid && !this.cs.filter.userids.hasOwnProperty(tweet.rt.username)) {
-             this.cs.filter.userids[tweet.rt.username] = [tweet.id];
+             this.cs.filter.userids[tweet.rt.username] = tweet.rt.userid;
             }
             this.cs.filter.tweets.push(tweet.id);
             if (tweet.isreply) this.cs.filter.replies.push(tweet.id);
@@ -1837,7 +1837,7 @@ var TweetfilterPrototype = function() {
               if (htmltext.indexOf("\n") > -1) {
                 tweettext.html(htmltext.replace(/\n/g, ' <br />')); //insert line breaks
               }
-              tweet.ismedia = $(".tweet-meta span.media", item).length > 0;
+              tweet.ismedia = $("span.icons span.media", item).length > 0;
               if (tweet.ismedia) {
                 li = this.cs.filter.links.indexOf(tweet.id);
                 if (li > -1) {
@@ -1847,9 +1847,12 @@ var TweetfilterPrototype = function() {
                 this.cs.filter.media.push(tweet.id);
               }
               $('span.tweet-full-name', item).after('<i class="tfu u'+tweet.userid+'"></i>');
+              if (tweet.rt && tweet.rt.userid) {
+                $('span.retweet-icon', item).next('em').after('<i class="tfu u'+tweet.rt.userid+'"></i><span class="tf-via">via '+tweet.rt.via+'</span>');
+              }
               if (tweet.rtcount) {
                 var badge = $('i.badge-tweet-top', item);
-                var badgehtml = ['<span class="tweet-context icon-link tf-rtc'+(tweet.rtcount === '100+' ? ' tf-hot':'')+'" title="Show retweeters">',
+                var badgehtml = ['<span class="retweet-icon"></span> <span class="tweet-context icon-link tf-rtc'+(tweet.rtcount === '100+' ? ' tf-hot':'')+'" title="Show retweeters">',
                       '<span>'+_('Retweeted {{retweet_count}} times', {retweet_count:tweet.rtcount})+'</span>',
                     '</span>'].join("\n");
                 if (badge.length) {
@@ -1861,7 +1864,8 @@ var TweetfilterPrototype = function() {
                     '<div class="tf tweet-row tweet-labels">',
                     badgehtml,
                     '</div>'                  
-                  ].join("\n"));
+                    ].join("\n")
+                  );
                 }
               }
               $('span.tweet-actions', item)
@@ -1870,14 +1874,10 @@ var TweetfilterPrototype = function() {
                         '<a class="tf dm" data-user="'+tweet.screenname+'" title="Direct message"><span><i class="tf-icon"></i> <b>DM</b></span></a>'+
                         '<a class="tf quote" title="Classic Retweet"><span><i class="tf-icon"></i> <b>Classic Retweet</b></span></a>'+
                         '<a class="tf menu" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a>'+
-                        '</span>');
-             var via = $('div.via > span.tweet-source', item);
-             via.eq(0).after(' <span class="tf-usertime" title="'+tweet.localtime.timezone+'">'+tweet.localtime.time+'</span>');
-             via.eq(1).addClass('tf-via');
-             if (tweet.rt && tweet.rt.userid) {
-                $('span.retweet-icon', item).next('em').after('<i class="tfu tfurt u'+tweet.rt.userid+'"></i>');
-               via.eq(1).after('<span class="retweet-icon"></span> <span class="tf-via tf-rt-via">via '+tweet.rt.via+'</span>');
-             }
+                        '</span>')
+                .before('<a class="tf-timestamp" href="/#!/'+tweet.username+'/status/'+tweet.tweetid+'" title="'+tweet.localtime.timestamp+'">'+tweet.localtime.prettytimestamp+'</a> '+
+                        '<span class="tf-usertime" title="'+tweet.localtime.timezone+'">'+tweet.localtime.time+'</span> '+
+                        '<span class="tf-via">via '+tweet.via+'</span>');
                                                                                                     _D('F:parsestream', 'I:itemid', itemid, 'found, id:',id);
             } else {
                                                                                                     _D('F:parsestream', 'W:itemid not found in filtered:',itemid);
@@ -2273,9 +2273,7 @@ var TweetfilterPrototype = function() {
                                                                                                     _D(f, 'checking tweet', tweet, 'searches', searches);
       for (var s=0, smax=searches.length; s < smax; s++) {
         query=searches[s];
-        if (!query.active) { 
-          continue;  
-        }
+        if (!query.active) continue;
         ismatch = false;
         //simple text filter: regular, exact and simple match (=contains keyword) allowed
         if (query.simple) {
@@ -2370,21 +2368,42 @@ var TweetfilterPrototype = function() {
       }
     } 
     var types = {
-      user:    /^\-?(?:f(?:rom)?\:\s*@?|@@)([A-Za-z0-9\_]{1,15}|(?:.+\=)?\/.+\/)$/, // from: @tweetfilterjs or from:tweetfilterjs or f:tweetfilterjs or @@tweetfilterjs (short syntax)
-      source:  /^\-?(?:v(?:ia)?\:\s*|\:@)(.+)$/, // via: echophon or via:web or v:iphone or :@sometwitterbot (short syntax)
-      name:    /^\-?(?:by?\:\s*|\?@)(.+)$/, // by: john doe or ?@john doe  (short syntax)
+      user:    /^\-?(?:(rt|retweets|re|replies|me|media|li|links)\s+)?(?:f(?:rom)?\:\s*@?|@@)([A-Za-z0-9\_]{1,15}|(?:.+\=)?\/.+\/)$/, // from: @tweetfilterjs or from:tweetfilterjs or f:tweetfilterjs or @@tweetfilterjs (short syntax)
+      source:  /^\-?(?:(rt|retweets|re|replies|me|media|li|links)\s+)?(?:v(?:ia)?\:\s*|\:@)(.+)$/, // via: echophon or via:web or v:iphone or :@sometwitterbot (short syntax)
+      name:    /^\-?(?:(rt|retweets|re|replies|me|media|li|links)\s+)?(?:by?\:\s*|\?@)(.+)$/, // by: john doe or ?@john doe  (short syntax)
       exact:   /^\-?"(.+)"$/, //case-insensitive exact phrase surrounded by stopchars like space or period (this.stopchars)
       simple:  /^\-?'?(.+)/ //anything else is simple text search/exclude or regex (within text and within expanded links text), trim leading escape character (single quote)
     }
     //   from:@user AND via:source AND replyto:@otheruser 
     
-    var matches, regularmatch, exactmatch;
+    var matches, regularmatch, exactmatch, tweettype;
     for (var type in types) {
       matches = search.raw.match(types[type]);
       if (matches) {
         regularmatch = exactmatch = false; //extended syntax, e.g. via:/^(iphone|android)$/  or name:"Joanna" or @/^bot
-        search.label = matches[1]; //preserve case for labels and regular expressions
-        search.search = search.sortby = matches[1].toLowerCase(); //always do case insensitive search / sort
+        if (~['exact','simple'].indexOf(type)) {
+          search.label = matches[1]; //preserve case for labels and regular expressions
+          search.search = search.sortby = matches[1].toLowerCase(); //always do case insensitive search / sort
+        } else {
+          search.label = matches[2]; //preserve case for labels and regular expressions
+          search.search = search.sortby = matches[2].toLowerCase(); //always do case insensitive search / sort
+          if (matches[1]) {
+            tweettype = matches[1];
+            if (~['rt','retweets'].indexOf(tweettype)) {
+              tweettype = 'retweets ';
+            } else 
+            if (~['re','replies'].indexOf(tweettype)) {
+              tweettype = 'replies ';
+            } else 
+            if (~['me','media'].indexOf(tweettype)) {
+              tweettype = 'media ';
+            } else 
+            if (~['li','links'].indexOf(tweettype)) {
+              tweettype = 'links ';
+            }
+            search[tweettype.replace(/\s$/,'')] = true;
+          } else tweettype = '';
+        }
         search.type = type;
         //normalize all inputs with different syntaxes
         switch(type) {
@@ -2408,8 +2427,8 @@ var TweetfilterPrototype = function() {
           break;
           case 'user': //match tweets by user. this filter is always "exact"
             search.user = true;
-            search.index = (search.excluded ? '-' : '')+'from:@'+search.search;
-            search.raw = (search.excluded ? '-' : '')+'from:@'+search.label;
+            search.index = (search.excluded ? '-' : '')+tweettype+'from:@'+search.search;
+            search.raw = (search.excluded ? '-' : '')+tweettype+'from:@'+search.label;
             if (/^[A-Za-z0-9\_]{1,15}$/.test(search.label)) {
               search.label = '@'+search.label;
             } else if ((regularmatch = search.label.match(/^(?:(.+)\=)?\/(.+)\/$/))) {
@@ -2420,8 +2439,8 @@ var TweetfilterPrototype = function() {
           break;
           case 'source': //match tweets by source (via)
             search.source = true;
-            search.index = (search.excluded ? '-' : '')+'via:'+search.search;
-            search.raw = (search.excluded ? '-' : '')+'via:'+search.label;
+            search.index = (search.excluded ? '-' : '')+tweettype+'via:'+search.search;
+            search.raw = (search.excluded ? '-' : '')+tweettype+'via:'+search.label;
             if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) source match <-- via:"web"
               search.label = 'via »'+exactmatch[1]+'«';
               search.exact = true;
@@ -2435,8 +2454,8 @@ var TweetfilterPrototype = function() {
           break;
           case 'name': //match tweets by (real?)name of user
             search.name = true;
-            search.index = (search.excluded ? '-' : '')+'by:'+search.search;
-            search.raw = (search.excluded ? '-' : '')+'by:'+search.label;
+            search.index = (search.excluded ? '-' : '')+tweettype+'by:'+search.search;
+            search.raw = (search.excluded ? '-' : '')+tweettype+'by:'+search.label;
             if ((exactmatch = search.search.match(/^"(.+)"$/))) { //exact (=full word) name match <-- by:"John Doe"
               search.label = 'by »'+exactmatch[1]+'«';
               search.exact = true;
@@ -2883,22 +2902,21 @@ var TweetfilterPrototype = function() {
   };
   
   
-  Tweetfilter.prototype.tweetclick = function(e) {
-                                                                                                    var f=_F('tweetclick');
-                                                                                                    _D(f,e.currentTarget);
-    var tweet = $(e.currentTarget);
-    var opened = tweet.hasClass('open');
-    var tweetcontent = tweet.find('div.tweet-content');
-    if (tweetcontent.data().tweeplus) {
-      var textcontainer = tweetcontent.find('div.tweet-text');
-                                                                                                  _D(f, tweetcontent.data().tweeplus, textcontainer);
-      if (!opened && this.getoption('enable-tweeplus')) {
-        textcontainer.data('twee-collapsed', textcontainer.html()).addClass('twee-expanded').html(twttr.util.linkify(this.encodehtml(tweetcontent.data().tweeplus)).replace(/\n/g,'<br />'));
-      } else {
-        textcontainer.html(textcontainer.data()['twee-collapsed']).removeClass('twee-expanded');
+  Tweetfilter.prototype.tweetclick = function() {
+    if (this.timeids.resizepane && this.timeids.resizepane !== -1) {
+      window.clearTimeout([this.timeids.resizepane, this.timeids.resizepane=-1][0]);
       }
+    this.timeids.resizepane = setTimeout((function() {
+      this.trigger('resizepane');
+      this.timeids.resizepane = -1;
+    }).bind(this), 500);
+    if (this.timeids.parselinks && this.timeids.parselinks !== -1) {
+      window.clearTimeout([this.timeids.parselinks, this.timeids.parselinks=-1][0]);
     }
-    
+    this.timeids.parselinks = setTimeout((function() {
+      this.poll('parselinks');
+      this.timeids.parselinks = -1;
+    }).bind(this), 500);
     return true; //always bubble
   };
   
@@ -3241,7 +3259,8 @@ var TweetfilterPrototype = function() {
             }
             break;
           case 'twitter-timeline-link':
-            var linkaddress = link.attr('data-expanded-url');
+            var linkaddress = link.attr('data-ultimate-url');
+            if (!linkaddress) linkaddress = link.attr('data-expanded-url');
             if (!linkaddress) linkaddress = link.attr('title');
             if (!linkaddress) linkaddress = link.attr('href');
             if (linkaddress) {
@@ -3379,7 +3398,8 @@ var TweetfilterPrototype = function() {
       return true; //stop polling in non tweet/user streams
     }
     var showexpanded = this.getoption('expand-links');
-    var links = $('a.twitter-timeline-link', this.cs.$node), //links in timeline
+    var links = $('a.twitter-timeline-link', this.cs.$node) //links in timeline
+                .add('a.twitter-timeline-link', this.cp.$detailsPaneOuter), //links in open dashboard pane
         linkdata, checktweets=[];
                                                                                                     _D(f, 'Found', links.length, 'links on page.');
     if (!this._lastresolvedurls) {
@@ -3395,9 +3415,9 @@ var TweetfilterPrototype = function() {
         this._lastresolvedurls = {};
         break;
       }
-      if (!linksresolved) {
+/*      if (!linksresolved) {
         return true;
-      }      
+      }      */
     }
     for (var l=0,llen=links.length,link;l<llen && (link=links.eq(l));l++) {
                                                                                                     _D(f, 'processing link', link.get(0));
@@ -3449,21 +3469,24 @@ var TweetfilterPrototype = function() {
         link.data('tf', linkdata);
                                                                                                     _D(f, 'linkdata:', linkdata);
         if (linkdata.tweeplus && this.getoption('enable-tweeplus')) {
+          try {
                                                                                                   _D(f, 'I:twee+ link found');
-          var tweetcontent = link.closest('div.tweet-content');
-          if (tweetcontent.length) {
-            if (!tweetcontent.data().tweeplus) {
-              var longtext = decodeURIComponent(linkdata.tweeplus.replace(/\+/g, ' '));
-              tweetcontent.data('tweeplus', longtext);
+            var textcontainer = link.closest('div.tweet-text-large'), 
+                longtext = decodeURIComponent(linkdata.tweeplus.replace(/\+/g, ' '));
               if (longtext) {
                 if (id > -1) {
                   this.cs.filter.items[id].text += "\n"+longtext.toLowerCase(); //only add the longtext, keep the original for filter
                 } 
+              if (textcontainer.length) {
+                textcontainer.data('tf-tweeplus-encoded', textcontainer.html()).addClass('tf-tweeplus-expanded');
+                textcontainer.html(twttr.util.linkify(this.encodehtml(longtext)).replace(/\n/g,'<br />'));
+              }
               } else if (id > -1) {
                 this.cs.filter.items[id].text += "\n"+linkdata.longurl.toLowerCase();
               }
-            }                                                                                     else _D(f, 'W:target link already inserted!');
-          }                                                                                       else _D(f, 'W:target row not found!');
+          } catch(e) {
+                                                                                                    _D(f, 'W:failed to convert twee+ text:', e);
+          }
         } else if (id > -1) {
           this.cs.filter.items[id].text += "\n"+linkdata.longurl.toLowerCase();
         }
@@ -3716,7 +3739,7 @@ var TweetfilterPrototype = function() {
               '<li class="filteractive"><a data-option="skip-mentionsme" class="filter" title="do not filter Tweets mentioning me"><b></b>don\'t hide mentioning me</a></li>',
               '<li class="filteractive"><a data-option="skip-me" class="filter" title="do not filter Tweets written by me"><b></b>don\'t hide my Tweets</a></li>',
               '<li class="filteractive"><a data-option="add-selection" class="filter" title="add selected text to filter after click"><b></b>add selection to filter</a></li>',
-              '<li class="filteractive"><a data-option="filter-classicrts" class="filter" title="Treat \'RT @\' style Retweets like new style Retweets"><b></b>treat classic rt like new rt</a></li>',
+              '<li class="filteractive"><a data-option="filter-classicrts" class="filter" title="Treat classic Retweets like new Retweets"><b></b>treat classic rt like new rt</a></li>',
               '<li><a data-option="hide-promoted-tweets" title="always hide promoted tweets"><b></b>hide promoted Tweets</a></li>',
               '<li><a data-option="highlight-mentionsme" title="highlight Tweets mentioning me"><b></b>highlight mentioning me</a></li>',
               '<li><a data-option="highlight-me" title="highlight Tweets I wrote"><b></b>highlight my Tweets</a></li>',
@@ -3727,9 +3750,10 @@ var TweetfilterPrototype = function() {
             '<ul class="checks">',
               '<li><a data-option="show-friends" title="show who follows you / who you follow"><b></b>show friend status</a></li>',
               '<li class="tweetstream"><a data-option="show-retweeted" title="show Retweeters"><b></b>show retweeted count</a></li>',
-//              '<li class="tweetstream"><a data-option="show-via" title="show tweet source"><b></b>show via in Tweets</a></li>',
+              '<li class="tweetstream"><a data-option="show-via" title="show tweet source"><b></b>show via in Tweets</a></li>',
               '<li class="tweetstream"><a data-option="show-br" title="show line breaks in Tweets"><b></b>show line breaks</a></li>',
               '<li class="tweetstream"><a data-option="show-usertime" title="show local Tweet creation time"><b></b>show Tweet\'s local time</a></li>',
+              '<li class="tweetstream"><a data-option="show-timestamp" title="show full Tweet timestamp (your time)"><b></b>show full timestamp</a></li>',
               '<li class="tweetstream"><a data-option="expand-new" title="immediately show new Tweets"><b></b>expand new Tweets</a></li>',
               '<li class="tweetstream"><a data-option="scroll-lock" title="lock current scroll position when loading new tweets"><b></b>lock scroll position</a></li>',
               '<li class="tweetstream"><a data-option="expand-links" title="expand shortened links in Tweets"><b></b>expand links</a></li>',
@@ -3802,7 +3826,7 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.widgetcss = function() {
     return [
       'html { overflow-y:scroll; min-height:100%; }', //force scrollbar, remove horizontal jumps (opera)
-      '#tf { display:block !important; bottom: 0; margin-left: 596px; position: fixed; text-align:left; '+this.css3rounded('0 4px 0 0')+' font-family:Arial,"Helvetica Neue",Helvetica,sans-serif; background:#fff; position:fixed; bottom:0; z-index:1; width: 385px; '+this.css3shadow('2px', 'rgba(0, 0, 0, 0.3)')+' border:1px solid #bbb; border-bottom:0; }',
+      '#tf { display:block !important; bottom: 0; margin-left: 586px; position: fixed; text-align:left; '+this.css3rounded('0 4px 0 0')+' font-family:Arial,"Helvetica Neue",Helvetica,sans-serif; background:#fff; position:fixed; bottom:0; z-index:1; width: 385px; '+this.css3shadow('2px', 'rgba(0, 0, 0, 0.3)')+' border:1px solid #bbb; border-bottom:0; }',
       '#tf.hidden { display:none !important; }',
       '#tf * { padding:0; margin:0; list-style:none; color:@darktext; }',
       //icon sprites
@@ -3937,15 +3961,12 @@ var TweetfilterPrototype = function() {
       "#tf .tf-queries > li > span > a.x { left:auto; text-indent:0; color: #999999; font-size: 9px; line-height: 16px; position: absolute; right: 0; top: 0; vertical-align: top; width: 10px; text-align:center; }",         
       '#tf .tf-queries > li > span > a.x:hover { color:@darktext; text-decoration:none; }',
       '#tf .tf-queries > li.user > span > a:first-child { font-weight:bold; }',
-      '#tf .tf-queries > li.via > span > a:first-child { font-style:italic;  }',
-      '#tf .tf-queries > li.exclusive a > span { border-bottom:2px solid @link; }',
-      '#tf .tf-queries > li.exclusive a * { color:@link !important; color:@link !important; font-weight:bold !important;  }',
-      '#tf .tf-queries > li a sub { font-weight:normal !important;  position:absolute; right:15px;  }',
-      
+      '#tf .tf-queries > li.via > span > a:first-child { font-style:italic; }',
+      '#tf .tf-queries > li.exclusive a > span { border-bottom:2px solid @link; color:@link !important; font-weight:bold !important; }',
       "#tf .tf-queries > li:hover > span, .tf-queries > li:hover > span > a > i  { background:#f5f5f5 !important; } ",
       "#tf .tf-queries > li.notfound a.checked > b { background: #aaa; border-color:#a7a7a7; }",
       "#tf .tf-queries > li.notfound a > i { display:none; }",
-      "#tf .tf-queries > li.notfound > span > a:first-child * { color: @lighttext !important; }",
+      "#tf .tf-queries > li.notfound > span > a:first-child > span { color: @lighttext !important; }",
 
       '#tf-customize ul.checks { list-style:none; padding:0; margin:0; overflow:hidden;}',
       '#tf-customize ul.checks > li { padding:0; margin:0; width:50%; }',
@@ -3981,12 +4002,11 @@ var TweetfilterPrototype = function() {
       '#message-drawer a.x { background: none repeat scroll 0 0 #F8F8F8; color: #999999; display: inline-block; font-family: Tahoma; font-size: 12px; font-weight: bold; height: 22px; margin: -5px -10px -10px 10px;  padding: 3px 3px 2px; }',         
       '#message-drawer a.x:hover { color:#666; text-decoration:none; }',
       /* add to filter menu */
-      'span.tweet-actions { right: -5px !important; }',
-      'div.open-close-tweet { display:none !important; }',
-      '.tf-actions { font-size:11px; position:absolute; top:-2px; right:58px; background:#fff; visibility:hidden; padding-right:6px; }',
-      'div[data-protected] .tf-actions { right:36px; }',
-      '.stream-tweet:hover .tf-actions, .focused-stream-item .stream-tweet .tf-actions, .open .tf-actions { visibility:visible; }',
-      '.tweet-actions a span b, .tf-actions a span b { display:none !important; }',
+      '.tweet-actions, .tf-actions { position:absolute; right:-5px; bottom:-5px; font-size:11px; }',
+      '.pane-components .tweet-actions { right: -5px; }',
+      '.tf-actions { right: 64px; visibility:hidden; display:block; }',
+      '.stream-tweet:hover .tf-actions, .focused-stream-item .stream-tweet .tf-actions { visibility:visible; }',
+      '.tweet-actions a span b, .tf-actions a span b { display:none; }',
       '.tf-actions a { outline:0 !important; text-decoration:none !important; }',
       '.tf-actions a span b { font-weight:400; }',
       '.tf-actions a span i { text-indent:-99999px; background:transparent url(../img/sprite-icons.png) no-repeat; width:15px; height:15px; display:inline-block; vertical-align:baseline; position:relative; margin:0 3px -3px 2px; }',
@@ -3997,7 +4017,8 @@ var TweetfilterPrototype = function() {
       '.tf-actions a.tf.quote:hover span i { background-position:-13px -15px; }',
       '.tf-actions a.tf.menu span i { background-position:-15px 1px; }',
       '.tf-actions a.tf.menu:hover span i { background-position:-30px 1px; }',
-      '.main-content ul.tf-menu { display:block; width:auto !important; position:absolute; top: 6px; right:66px; left:auto; }',
+
+      '.main-content ul.tf-menu { display:block; width:auto !important; position:absolute; top: 12px; right:0; left:auto; }',
       '.main-content ul.tf-menu li { font-size:11px; padding:3px 8px; white-space:nowrap; overflow:hidden; }',
       '.main-content ul.tf-menu li.tf-user a { font-weight:bold; }',
       '.main-content ul.tf-menu li.tf-source a { font-style:italic; }',
@@ -4011,13 +4032,13 @@ var TweetfilterPrototype = function() {
       '.tf-retweeters li img, .tf-retweeters li a { display:block; }',
       '.tf-retweeters li.retweetsummary { clear:both; font-size: 10px; color:#444; margin-bottom:0 !important; }',
        /* via link */ 
-      '.stream-item .tf-rt-via > .retweet-icon { margin-right: 1px !important; }',
-      /* twee+ */
+      '.stream-item .tf-via { display:none; }',
+
       'body.tf-filter-inverted li.stream-tab.active a.tab-text { color:#999 !important; text-decoration:line-through; }',
       'body.tf-filter-disabled li.stream-tab.active a.tab-text { color:@darktext !important; text-decoration:none; }',
-      '.stream-item .tf-via { display:inline; font-size:11px; color:@lighttext !important; }',
-      '.stream-item .tf-via a { color:@lighttext !important; }',
-      '.stream-item .tf-via a:hover { color:@link !important; }',
+      'body.tf-show-via .stream-item .tf-via { display:inline; font-size:11px; color:@lighttext !important; }',
+      'body.tf-show-via .stream-item .tf-via a { color:@lighttext !important; }',
+      'body.tf-show-via .stream-item .tf-via a:hover { color:@link !important; }',
       /* body class enabled layout options */
       'body.tf-expand-new div#new-tweets-bar, body.tf-expand-new div.new-tweets-bar { display:none !important; }',
       '.tweet-text br { display:none; }',
@@ -4028,8 +4049,8 @@ var TweetfilterPrototype = function() {
       'body.tf-small-links .main-content a.twitter-timeline-link:hover { max-height:none; }',
       'body.tf-small-links div.tweet-text-large a.twitter-timeline-link { font-size:14px; line-height:14px; max-width:330px; }',
       'body.tf-small-links div.twttr-dialog-content a.twitter-timeline-link { display:inline; }',
- //     '.main-content .stream-item .tweet-source { display:none; }',
- //     'body.tf-show-via .main-content .stream-item .tweet-source { display:inline; }',
+      '.main-content .stream-item .tweet-source { display:none; }',
+      'body.tf-show-via .main-content .stream-item .tweet-source { display:inline; }',
       '#tf-compact-activities { display:none; }',
       '#tf-compact-activities ul.user-stats > li { padding: 0 9px; }',
       '#tf-compact-activities ul.user-stats li:first-child { padding-left:0 !important; }',
@@ -4083,7 +4104,9 @@ var TweetfilterPrototype = function() {
       'body.tf-enable-tweeplus a.tweet-button.disabled { display:none; }',
       'body.tf-enable-tweeplus .tweet-button-sub-container { position:absolute; right:0; }', //fix jumping tweet button container
       'body.tf-show-retweeted div.tweet-row.tf { display:block; }',
+      'body.tf-show-timestamp .main-content a.tweet-timestamp { display:none; }',
       '.main-content a.tf-timestamp { font-size:11px; color:#999 !important; display:none; }',
+      'body.tf-show-timestamp .main-content a.tf-timestamp { display:inline; }',
       'body.tf-hide-promoted-content .promoted-trend,',
       'body.tf-hide-promoted-content .promoted-account { display:none !important; }',
       '.tweet-corner i.tfu { margin-left:-3px; }',
@@ -4359,13 +4382,35 @@ var TweetfilterPrototype = function() {
       } else {
         action = query.enabled ? 'hide' : 'show';
       }
-      action = action + ' tweets';
+      if (query.retweets) {
+        action = action + ' retweets';
+      } else 
+      if (query.replies) {
+        action = action + ' replies';
+      } else 
+      if (query.media) {
+        action = action + ' media';
+      } else 
+      if (query.links) {
+        action = action + ' links';
+      } else {
+        action = action + ' tweets';
+      }
       switch(query.type) {
         case 'user':action += ' from';break;
         case 'source':action += ' via';break;
         default:action += ' containing';break;
       }
       label = this.encodehtml(query.label);
+      if (query.retweets) {
+        label += ' <sub>RT</sub>';
+      } else if (query.replies) {
+        label += ' <sub>RE</sub>';
+      } else if (query.media) {
+        label += ' <sub>Media</sub>';
+      } else if (query.links) {
+        label += ' <sub>Links</sub>';
+      }
       listitems[category].push('<li class="'+query.type+(!query.count ? ' notfound' : '')+(exclusivemode && ~this.exclusive.indexOf(query.id) ? ' exclusive' : '')+'">'+
          '<span>'+
            '<a data-queryid="'+query.id+'"'+(query.enabled ? ' class="checked"' : '')+' title="'+this.encodehtml(query.index)+'">'+
