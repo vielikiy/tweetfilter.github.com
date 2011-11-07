@@ -1385,7 +1385,7 @@ var TweetfilterPrototype = function() {
     $('#tf-stream-title').html(streamtitle);
     
     if ((sm = this.sm)) {
-      var titlecontainer = $('div.stream-items div.stream-title:first');
+      var titlecontainer = $('div.main-content div.stream-title:first');
       if ($('.subtabs', titlecontainer).length) { //don't touch stream title containing subtabs
         return true;
       }

@@ -39,7 +39,7 @@
 var TweetfilterPrototype = function() {
   
   function Tweetfilter() {
-    //gradient start colors for highlighting tweets, change to your needs
+    //gradient start colors for highlighting tweets, change to your taste
     this.color_reply = '#FFFAB4'; // tweets mentioning current user
     this.color_excluded = '#E5F4AC'; // tweets matching excluded filters
     this.color_me = '#FFFAB4'; // tweets written by current user
@@ -100,7 +100,7 @@ var TweetfilterPrototype = function() {
     this._streammap = {}; //stream namespace => stream itemtype
     this._pagemap = {}; //route name => page name
     var i, imax;
-    for (var pagename in pagemap) {
+    for (var pagename in pagemap) {   
       for (i=0,imax=pagemap[pagename].length;i<imax;i++) {
         this._pagemap[pagemap[pagename][i]] = pagename;
       }
@@ -249,6 +249,8 @@ var TweetfilterPrototype = function() {
       /* options changing the dashboard */
       'compact-activities': true,  /* compact activities */
       'hide-wtf': false,     /* hide who to follow */
+      'hide-following': false,     /* hide following dashboard component */
+      'hide-followers': false,     /* hide followers dashboard component */
       'hide-trends': false,  /* hide trends */
       'hide-ad': true,  /* hide advertising */
       'hide-invite': true, /* hide invite friends */
@@ -446,7 +448,7 @@ var TweetfilterPrototype = function() {
     this.nextid = 1;    /* next unique id for query. always incremented */
     this.queries = [];  /* parsed queries */
     
-    this.stopchars = ' (){}[].,;-_#\'+*~´`?\\/&%$§"!^°'; //possible chars delimiting a phrase, for exact search. spares expensive regex match
+    this.stopchars = " \n(){}[].,;-_#'+*~´`?\\/&%$§\"!^°"; //possible chars delimiting a phrase, for exact search. spares expensive regex match
     this.basex = this._basemap('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890');  //base62 map for large number compression
     this.base10 = this._basemap('0123456789');
     if (!this.checkrequirements()) { //browser must meet minimum requirements
@@ -508,7 +510,7 @@ var TweetfilterPrototype = function() {
         if (this.cp.streamManager && this.cp.streamManager.getCurrent) {
           if (!this._pageswitched) { //trigger pageswitched only after the streamManager for page is loaded
             this._pageswitched = true;
-            if (!twttr.$elements.page.data('_tfbound')) {
+            if (!twttr.$elements.page.data()._tfbound) {
               twttr.$elements.page.delegate('li.stream-tab-searches a[href!=#]', 'mousedown click', (function(e) {return this.savedsearchclick(e);}).bind(this))
                    .data('_tfbound', 1);
             }
@@ -713,7 +715,7 @@ var TweetfilterPrototype = function() {
       }).delegate('#search-query', 'blur', function() {
         $('div#top-stuff').attr('data-focused', '0');
       });
-      
+      this._spritesurl = $('#new-tweet span').css('background-image');
       $('.twitter-anywhere-tweet-box-editor').live('focus blur', this.tweetboxfocus.bind(this));
       
       this.components.latest.callback =(function(component) {
@@ -884,6 +886,9 @@ var TweetfilterPrototype = function() {
     this.enableoption(['show-br'], this.stream.istweets());
     this.enableoption(['hide-promoted-tweets'], this.stream.istweets());
     this.enableoption(['show-friends'], (this.stream.istweets() || this.stream.isusers()) && !this.friends.loading && this.friends.expires);
+    this.enableoption(['hide-following'], !!document.getElementById('tf-following-component'));
+    this.enableoption(['hide-followers'], !!document.getElementById('tf-followers-component'));
+    
     return true;
   };
 
@@ -1304,6 +1309,8 @@ var TweetfilterPrototype = function() {
       case 'hide-question':     /* hide "what's happening?" */
       case 'hide-tweetbox':     /* hide main tweet box */
       case 'hide-wtf':     /* hide who to follow */
+      case 'hide-following':     /* hide following dashboard component */
+      case 'hide-followers':      /* hide followers dashboard component */
       case 'hide-promoted-content':     /* hide promoted trends, wtf */
       case 'hide-trends':  /* hide trends */
       case 'hide-invite':  /* hide invite friends */
@@ -1378,18 +1385,17 @@ var TweetfilterPrototype = function() {
     $('#tf-stream-title').html(streamtitle);
     
     if ((sm = this.sm)) {
-      if ($('.subtabs', sm.$titleContainer).length) { //don't touch stream title containing subtabs
+      var titlecontainer = $('div.main-content div.stream-title:first');
+      if ($('.subtabs', titlecontainer).length) { //don't touch stream title containing subtabs
         return true;
       }
      //set in stream
-      var textcontainer = $('> h2', sm.$titleContainer);
+      var textcontainer = $('> h2', titlecontainer);
       if (!textcontainer.length) {
         textcontainer = $('<h2></h2>');
-        sm.$titleContainer.prepend(textcontainer);
+        titlecontainer.prepend(textcontainer);
       } 
       if (textcontainer.is(':empty')) {
-
-        
         textcontainer.html(this.stream.title);
       } else if ($('span.stream-tab-title-inner', textcontainer).length) {
         textcontainer = $('span.stream-tab-title-inner', textcontainer);
@@ -1747,7 +1753,7 @@ var TweetfilterPrototype = function() {
               }
               $('span.tweet-actions', item)
                 .after('<span class="tf-actions">'+
-                      //  '<a class="tf mark" data-itemid="'+tweet.tweetid+'" title="Mark as last read"><span><i class="tf-icon"></i> <b>Mark Last Read</b></span></a>'+
+                     //   '<a class="tf mark" data-itemid="'+tweet.tweetid+'" title="Mark as last read"><span><i class="tf-icon"></i> <b>Mark Last Read</b></span></a>'+
                         '<a class="tf dm" data-user="'+tweet.screenname+'" title="Direct message"><span><i class="tf-icon"></i> <b>DM</b></span></a>'+
                         '<a class="tf quote" title="Classic Retweet"><span><i class="tf-icon"></i> <b>Classic Retweet</b></span></a>'+
                         '<a class="tf menu" title="Tweetfilter"><span><i class="tf-icon"></i> <b>Filter</b></span></a>'+
@@ -2063,7 +2069,12 @@ var TweetfilterPrototype = function() {
       }
       for (var s=0, smax=searches.length; s < smax; s++) {
         query=searches[s];
-        if (!query.active) continue;
+        if (!query.active ||
+           (query.retweets && !tweet.rt) ||
+           (query.media && !tweet.ismedia) || 
+           (query.links && !tweet.haslinks)) {
+           continue;
+        } 
         ismatch = false;
         //simple text filter: regular, exact and simple match (=contains keyword) allowed
         if (query.simple) {
@@ -2079,9 +2090,17 @@ var TweetfilterPrototype = function() {
         //user filter: regular and simple (lowercase) match allowed
         if (query.user) {
           if (query.regular) {
-            ismatch = query.regex.test(tweet.username) || (tweet.rt && query.regex.test(tweet.rt.username))
+            if (query.retweets) {
+              ismatch = query.regex.test(tweet.rt.username);
+            } else {
+              ismatch = query.regex.test(tweet.username) || (tweet.rt && query.regex.test(tweet.rt.username));
+            }
           } else {
-            ismatch = (tweet.username === query.search) || (tweet.rt && tweet.rt.username === query.search);
+            if (query.retweets) {
+              ismatch = tweet.rt.username === query.search;
+            } else {
+              ismatch = (tweet.username === query.search) || (tweet.rt && tweet.rt.username === query.search);
+            }
           }
         } else 
         //source filter: regular, exact and simple match (=contains keyword) allowed
@@ -2643,7 +2662,7 @@ var TweetfilterPrototype = function() {
   Tweetfilter.prototype.tweetclick = function() {
     if (this.timeids.resizepane && this.timeids.resizepane !== -1) {
       window.clearTimeout([this.timeids.resizepane, this.timeids.resizepane=-1][0]);
-      }
+    }
     this.timeids.resizepane = setTimeout((function() {
       this.trigger('resizepane');
       this.timeids.resizepane = -1;
@@ -2733,7 +2752,6 @@ var TweetfilterPrototype = function() {
   };
   
   Tweetfilter.prototype.tweettextmouseup = function(e) {
-                                                                                                     
     if (this.getoption('add-selection') && !this.getoption('filter-disabled') && $(e.target).closest('div.stream-item').length) {
       if (window.getSelection().toString().length || e.which === 2) {
         this.status.selectedtweet = $(e.target).closest('div.stream-item').attr('id');
@@ -3160,16 +3178,20 @@ var TweetfilterPrototype = function() {
         link.data('tf', linkdata);
         if (linkdata.tweeplus && this.getoption('enable-tweeplus')) {
           try {
-            var textcontainer = link.closest('div.tweet-text-large'), 
+            var tweetcontainer = link.closest('div.tweet-content'),
+                textcontainer = link.closest('div.tweet-text-large'), 
                 longtext = decodeURIComponent(linkdata.tweeplus.replace(/\+/g, ' '));
               if (longtext) {
                 if (id > -1) {
                   this.cs.filter.items[id].text += "\n"+longtext.toLowerCase(); //only add the longtext, keep the original for filter
-                } 
-              if (textcontainer.length) {
-                textcontainer.data('tf-tweeplus-encoded', textcontainer.html()).addClass('tf-tweeplus-expanded');
-                textcontainer.html(twttr.util.linkify(this.encodehtml(longtext)).replace(/\n/g,'<br />'));
-              }
+                }
+                if (tweetcontainer.length && !tweetcontainer.data().tweeplus) {
+                  tweetcontainer.data('tweeplus', longtext);
+                }
+                if (textcontainer.length) {
+                  textcontainer.data('tf-tweeplus-encoded', textcontainer.html()).addClass('tf-tweeplus-expanded');
+                  textcontainer.html(twttr.util.linkify(this.encodehtml(longtext)).replace(/\n/g,'<br />'));
+                }
               } else if (id > -1) {
                 this.cs.filter.items[id].text += "\n"+linkdata.longurl.toLowerCase();
               }
@@ -3204,18 +3226,27 @@ var TweetfilterPrototype = function() {
             '<ul class="user-stats clearfix"></ul>',
             '<hr class="component-spacer" />',
           '</div>',
-        '</div>'
+       '</div>'
     ].join("\n"));
     target.before(activities);
-    this.poll('refreshactivities');
+    var friends = $([
+      '<div id="tf-following-component" class="component tf tf-following">',
+      '</div>',
+      '<div id="tf-followers-component" class="component tf tf-followers">',
+      '</div>',
+      '<div style="clear:both"></div>'
+    ].join("\n"));
+    target.after(friends);
+    this.poll(['refreshactivities','refreshoptions']);
   };
   
-  Tweetfilter.prototype.clearexpiredvalues = function() {
+  Tweetfilter.prototype.clearexpiredvalues = function(clearall) {
     var now = new Date();
+    if (typeof clearall !== 'boolean') clearall = false;
     for (var i=0,index;i<localStorage.length && (index = localStorage.key(i));i++) {
       if (typeof index==='string' && index.substr(0, 4) === ':TF:') {
         var cached = this.getvalue(index);
-        if (cached && cached.hasOwnProperty('expires') && cached.expires < now.getTime()) {
+        if (cached && cached.hasOwnProperty('expires') && (clearall || cached.expires < now.getTime())) {
           this.setvalue(index, null);
         }
       }
@@ -3246,7 +3277,9 @@ var TweetfilterPrototype = function() {
   
   Tweetfilter.prototype.refreshactivities = function() {
     var targetusername = this._stream.params.screenName || this.user.name;
-    var activities = $('#tf-compact-activities');
+    var activities = $('#tf-compact-activities'),
+        following = $('#tf-following-component'),
+        followers = $('#tf-followers-component');
     var cached = this.getexvalue(targetusername, false, 'activities');
     if (cached) {
       activities.html(cached);
@@ -3260,14 +3293,91 @@ var TweetfilterPrototype = function() {
               '<li><a href="/#!/'+user.screenName+'/followers" class="user-stats-count">'+twttr.util.formatNumber(user.followersCount, twttr.pageLocale)+'<span class="user-stats-stat">'+_('Followers')+'</span></a></li>'+
               '<li><a href="/#!/'+user.screenName+'/lists/memberships" class="user-stats-count">'+twttr.util.formatNumber(user.listedCount, twttr.pageLocale)+'<span class="user-stats-stat">'+_('Listed')+'</span></a></li>'
             ].join("\n")
-          );
-          $('h2.dashboard-profile-title', activities).html(
-            '<img width="24" class="profile-dashboard" alt="'+this.encodehtml(user.name)+'" src="'+user.profileImageUrl+'">'+
-            '@'+user.screenName
-          );
+          ).attr({'data-followerscount': twttr.util.formatNumber(user.followersCount, twttr.pageLocale), 
+                  'data-followingcount': twttr.util.formatNumber(user.friendsCount, twttr.pageLocale)});
+          var title = $('h2.dashboard-profile-title', activities),
+              titlehtml = '<img width="24" class="profile-dashboard" alt="'+this.encodehtml(user.name)+'" src="'+user.profileImageUrl+'"> @'+user.screenName;
+          if (user.url) {
+            titlehtml = '<a href="'+user.url+'" title="'+this.encodehtml(user.url)+'" target="_blank">'+titlehtml+'</a>'
+          }
+          title.html(titlehtml);
+          $('div.user-info', activities).remove();
+          title.after('<div class="tf user-info"><span class="bio">'+twttr.util.linkify(user.description)+'</span></div>');
           this.setexvalue(user.screenName, activities.html(), 'activities', 60 * 5);
         }).bind(this));      
       }).bind(this));    
+    }
+    if (following.length) {
+      cached = this.getexvalue(targetusername, false, 'following');
+      if (cached) {
+        following.html(cached);
+      } else {
+        twttr.API.User.find(targetusername).friends({
+          count: 12,
+          success: (function(collection, data) {
+            var userthumbs = [
+               '<h2>',
+                 '<a class="title-link" href="/#!/'+targetusername+'/following">',
+                   '<span class="dashboard-component-title">'+_('Following')+'</span>',
+                   '<span class="user-stat-link">'+$('.tf-activities > ul', activities).attr('data-followingcount')+'</span>',
+                 '</a>',
+               '</h2>',            
+              '<ul class="inline-list">',
+            ];
+            if (data.response.users) {
+              collection = data.response.users;
+            }  else return;
+            for (var u=0,umax=collection.length,user;u<umax && (user=collection[u]);u++) {
+              userthumbs.push([
+                '<li class="user-thumb-list-member">',
+                  '<a data-user-id="'+user.id_str+'" class="user-profile-link" href="/#!/'+user.screen_name+'">',
+                    '<img width="24" height="24" src="'+user.profile_image_url+'" original-title="'+user.screen_name+'">',
+                  '</a>',
+                '</li>'].join("\n")              
+              );
+            }
+            userthumbs.push('</ul>')
+            following.html(userthumbs.join("\n"));
+            this.setexvalue(targetusername, following.html(), 'following', 60 * 15);
+          }).bind(this)
+        });
+      }
+    }
+    if (followers.length) {
+      cached = this.getexvalue(targetusername, false, 'followers');
+      if (cached) {
+        followers.html(cached);
+      } else {
+        twttr.API.User.find(targetusername).followers({
+          count: 12, 
+          success: (function(collection, data) {
+            var userthumbs = [
+               '<h2>',
+                 '<a class="title-link" href="/#!/'+targetusername+'/followers">',
+                   '<span class="dashboard-component-title">'+_('Followers')+'</span>',
+                   '<span class="user-stat-link">'+$('.tf-activities > ul', activities).attr('data-followerscount')+'</span>',
+                 '</a>',
+               '</h2>',            
+              '<ul class="inline-list">',
+            ];
+            if (data.response.users) {
+              collection = data.response.users;
+            }  else return;
+            for (var u=0,umax=collection.length,user;u<umax && (user=collection[u]);u++) {
+              userthumbs.push([
+                '<li class="user-thumb-list-member">',
+                  '<a data-user-id="'+user.id_str+'" class="user-profile-link" href="/#!/'+user.screen_name+'">',
+                    '<img width="24" height="24" src="'+user.profile_image_url+'" original-title="'+user.screen_name+'">',
+                  '</a>',
+                '</li>'].join("\n")              
+              );
+            }
+            userthumbs.push('</ul>')
+            followers.html(userthumbs.join("\n"));
+            this.setexvalue(targetusername, followers.html(), 'followers', 60 * 15);
+          }).bind(this)
+        });
+      }      
     }
     return true; //method can be used in poll
   };
@@ -3363,6 +3473,7 @@ var TweetfilterPrototype = function() {
           '<p>',
             '<select id="tf-filter-add-timeline"><option value="current">for this timeline</option><option value="all">for all timelines</option></select>',
             '<input type="text" id="tf-filter-add" value="+ Add to Tweetfilter" />',
+      //      '<a href="#" class="button advanced" title="Advanced Filter">Advanced</a>',
             '<a href="http://tweetfilter.org/#usage" class="help" target="blank" title="Tweetfilter usage (tweetfilter.org)">Help</a>',
           '</p>',
         '</div>',
@@ -3416,8 +3527,10 @@ var TweetfilterPrototype = function() {
           '<div data-tab="dashboard">',
             '<ul class="checks">',
               '<li><a data-option="fixed-dashboard"><b></b>fixed dashboard</a></li>',
-              '<li class="disabled tweetstream"><a data-option="compact-activities"><b></b>compact activities</a></li>',
+              '<li class="disabled"><a data-option="compact-activities"><b></b>compact activities</a></li>',
               '<li class="disabled tweetstream"><a data-option="hide-wtf"><b></b>hide who to follow</a></li>',
+              '<li class="disabled"><a data-option="hide-following"><b></b>hide following</a></li>',
+              '<li class="disabled"><a data-option="hide-followers"><b></b>hide followers</a></li>',
               '<li class="disabled tweetstream"><a data-option="hide-trends"><b></b>hide trends</a></li>',
               '<li class="disabled tweetstream"><a data-option="hide-ad"><b></b>hide advertising</a></li>',
               '<li class="tweetstream"><a data-option="hide-promoted-content" title="hide promoted trends, who to follow"><b></b>hide promoted content</a></li>',
@@ -3458,7 +3571,7 @@ var TweetfilterPrototype = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-11-03</span> ',
+            '<span class="updated">11-11-07</span> ',
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Install new version</a>',
           '</p>',
           '<p class="update">',
@@ -3483,7 +3596,7 @@ var TweetfilterPrototype = function() {
       '#tf.hidden { display:none !important; }',
       '#tf * { padding:0; margin:0; list-style:none; color:@darktext; }',
       //icon sprites
-      ".tf-icon { background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC0AAAAtCAYAAAA6GuKaAAAACXBIWXMAAAsTAAALEwEAmpwYAAAKT2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRCS4iAlEtvUhUIIFJCi4AUkSYqIQkQSoghodkVUcERRUUEG8igiAOOjoCMFVEsDIoK2AfkIaKOg6OIisr74Xuja9a89+bN/rXXPues852zzwfACAyWSDNRNYAMqUIeEeCDx8TG4eQuQIEKJHAAEAizZCFz/SMBAPh+PDwrIsAHvgABeNMLCADATZvAMByH/w/qQplcAYCEAcB0kThLCIAUAEB6jkKmAEBGAYCdmCZTAKAEAGDLY2LjAFAtAGAnf+bTAICd+Jl7AQBblCEVAaCRACATZYhEAGg7AKzPVopFAFgwABRmS8Q5ANgtADBJV2ZIALC3AMDOEAuyAAgMADBRiIUpAAR7AGDIIyN4AISZABRG8lc88SuuEOcqAAB4mbI8uSQ5RYFbCC1xB1dXLh4ozkkXKxQ2YQJhmkAuwnmZGTKBNA/g88wAAKCRFRHgg/P9eM4Ors7ONo62Dl8t6r8G/yJiYuP+5c+rcEAAAOF0ftH+LC+zGoA7BoBt/qIl7gRoXgugdfeLZrIPQLUAoOnaV/Nw+H48PEWhkLnZ2eXk5NhKxEJbYcpXff5nwl/AV/1s+X48/Pf14L7iJIEyXYFHBPjgwsz0TKUcz5IJhGLc5o9H/LcL//wd0yLESWK5WCoU41EScY5EmozzMqUiiUKSKcUl0v9k4t8s+wM+3zUAsGo+AXuRLahdYwP2SycQWHTA4vcAAPK7b8HUKAgDgGiD4c93/+8//UegJQCAZkmScQAAXkQkLlTKsz/HCAAARKCBKrBBG/TBGCzABhzBBdzBC/xgNoRCJMTCQhBCCmSAHHJgKayCQiiGzbAdKmAv1EAdNMBRaIaTcA4uwlW4Dj1wD/phCJ7BKLyBCQRByAgTYSHaiAFiilgjjggXmYX4IcFIBBKLJCDJiBRRIkuRNUgxUopUIFVIHfI9cgI5h1xGupE7yAAygvyGvEcxlIGyUT3UDLVDuag3GoRGogvQZHQxmo8WoJvQcrQaPYw2oefQq2gP2o8+Q8cwwOgYBzPEbDAuxsNCsTgsCZNjy7EirAyrxhqwVqwDu4n1Y8+xdwQSgUXACTYEd0IgYR5BSFhMWE7YSKggHCQ0EdoJNwkDhFHCJyKTqEu0JroR+cQYYjIxh1hILCPWEo8TLxB7iEPENyQSiUMyJ7mQAkmxpFTSEtJG0m5SI+ksqZs0SBojk8naZGuyBzmULCAryIXkneTD5DPkG+Qh8lsKnWJAcaT4U+IoUspqShnlEOU05QZlmDJBVaOaUt2ooVQRNY9aQq2htlKvUYeoEzR1mjnNgxZJS6WtopXTGmgXaPdpr+h0uhHdlR5Ol9BX0svpR+iX6AP0dwwNhhWDx4hnKBmbGAcYZxl3GK+YTKYZ04sZx1QwNzHrmOeZD5lvVVgqtip8FZHKCpVKlSaVGyovVKmqpqreqgtV81XLVI+pXlN9rkZVM1PjqQnUlqtVqp1Q61MbU2epO6iHqmeob1Q/pH5Z/YkGWcNMw09DpFGgsV/jvMYgC2MZs3gsIWsNq4Z1gTXEJrHN2Xx2KruY/R27iz2qqaE5QzNKM1ezUvOUZj8H45hx+Jx0TgnnKKeX836K3hTvKeIpG6Y0TLkxZVxrqpaXllirSKtRq0frvTau7aedpr1Fu1n7gQ5Bx0onXCdHZ4/OBZ3nU9lT3acKpxZNPTr1ri6qa6UbobtEd79up+6Ynr5egJ5Mb6feeb3n+hx9L/1U/W36p/VHDFgGswwkBtsMzhg8xTVxbzwdL8fb8VFDXcNAQ6VhlWGX4YSRudE8o9VGjUYPjGnGXOMk423GbcajJgYmISZLTepN7ppSTbmmKaY7TDtMx83MzaLN1pk1mz0x1zLnm+eb15vft2BaeFostqi2uGVJsuRaplnutrxuhVo5WaVYVVpds0atna0l1rutu6cRp7lOk06rntZnw7Dxtsm2qbcZsOXYBtuutm22fWFnYhdnt8Wuw+6TvZN9un2N/T0HDYfZDqsdWh1+c7RyFDpWOt6azpzuP33F9JbpL2dYzxDP2DPjthPLKcRpnVOb00dnF2e5c4PziIuJS4LLLpc+Lpsbxt3IveRKdPVxXeF60vWdm7Obwu2o26/uNu5p7ofcn8w0nymeWTNz0MPIQ+BR5dE/C5+VMGvfrH5PQ0+BZ7XnIy9jL5FXrdewt6V3qvdh7xc+9j5yn+M+4zw33jLeWV/MN8C3yLfLT8Nvnl+F30N/I/9k/3r/0QCngCUBZwOJgUGBWwL7+Hp8Ib+OPzrbZfay2e1BjKC5QRVBj4KtguXBrSFoyOyQrSH355jOkc5pDoVQfujW0Adh5mGLw34MJ4WHhVeGP45wiFga0TGXNXfR3ENz30T6RJZE3ptnMU85ry1KNSo+qi5qPNo3ujS6P8YuZlnM1VidWElsSxw5LiquNm5svt/87fOH4p3iC+N7F5gvyF1weaHOwvSFpxapLhIsOpZATIhOOJTwQRAqqBaMJfITdyWOCnnCHcJnIi/RNtGI2ENcKh5O8kgqTXqS7JG8NXkkxTOlLOW5hCepkLxMDUzdmzqeFpp2IG0yPTq9MYOSkZBxQqohTZO2Z+pn5mZ2y6xlhbL+xW6Lty8elQfJa7OQrAVZLQq2QqboVFoo1yoHsmdlV2a/zYnKOZarnivN7cyzytuQN5zvn//tEsIS4ZK2pYZLVy0dWOa9rGo5sjxxedsK4xUFK4ZWBqw8uIq2Km3VT6vtV5eufr0mek1rgV7ByoLBtQFr6wtVCuWFfevc1+1dT1gvWd+1YfqGnRs+FYmKrhTbF5cVf9go3HjlG4dvyr+Z3JS0qavEuWTPZtJm6ebeLZ5bDpaql+aXDm4N2dq0Dd9WtO319kXbL5fNKNu7g7ZDuaO/PLi8ZafJzs07P1SkVPRU+lQ27tLdtWHX+G7R7ht7vPY07NXbW7z3/T7JvttVAVVN1WbVZftJ+7P3P66Jqun4lvttXa1ObXHtxwPSA/0HIw6217nU1R3SPVRSj9Yr60cOxx++/p3vdy0NNg1VjZzG4iNwRHnk6fcJ3/ceDTradox7rOEH0x92HWcdL2pCmvKaRptTmvtbYlu6T8w+0dbq3nr8R9sfD5w0PFl5SvNUyWna6YLTk2fyz4ydlZ19fi753GDborZ752PO32oPb++6EHTh0kX/i+c7vDvOXPK4dPKy2+UTV7hXmq86X23qdOo8/pPTT8e7nLuarrlca7nuer21e2b36RueN87d9L158Rb/1tWeOT3dvfN6b/fF9/XfFt1+cif9zsu72Xcn7q28T7xf9EDtQdlD3YfVP1v+3Njv3H9qwHeg89HcR/cGhYPP/pH1jw9DBY+Zj8uGDYbrnjg+OTniP3L96fynQ89kzyaeF/6i/suuFxYvfvjV69fO0ZjRoZfyl5O/bXyl/erA6xmv28bCxh6+yXgzMV70VvvtwXfcdx3vo98PT+R8IH8o/2j5sfVT0Kf7kxmTk/8EA5jz/GMzLdsAAAAgY0hSTQAAeiUAAICDAAD5/wAAgOkAAHUwAADqYAAAOpgAABdvkl/FRgAABfhJREFUeNrsmF9MU1ccx7+/e7F/kMKFCkxjpVCrMc5aKfpiDFVflrDEumQ++KAYTcuyh+Fsskev8xEySzYTa0JWTfCBldEXExMzVzZ5wmSlxAcjhLIiaAIpiNMa1/72wL14AflnydyS/pKbtvf+Pqffc873/M5piZkZ7x+EDxAC/odRAEAG4ATgWQMXARALBoO/ElGMmUNNTU39K0HXr1+vZ2YPAOvl+PYSJsRAdOPJ90dWZLd+ca+eRT5GDCsxcz0R9agPmfm00hGrhokBCBDRDU3esWAw2ExEbm2eKIqec+fOjWiFZrPZEBFp24tcjm8vAeDWtBfLEh0fv3p0RCsUQvZHYD4rAAgpQmdNOivMCWBKk+hZIPg0gMCBAwcaATQyc0J55MxkMrFgMFgCAMFgsISZI6pgZk4wc7Mois2/Xag+w+AzwCxLRE4R+KPUe7cEAEq9d0sgcPdbwZwA8/kMcF6YmJiwDg4OhlKpFDPzFWYuIaJpAAFFSIiIRpi5ipkvMnO30qFYJpNxulyugMvlimzatElm5igACUCzwjYrnyMAZCKKEJGczWatROS877dd+d1vi3zycdElAFEA0sYCoRkAlNdZlnGJiSIguihmyUrMzIlEApOTkxBFEaWlpVNVVVUBpZGoMoXqyEeVDpxWOkN9fX1XiEgVGRkYGIi9fv3a3dTUdPjatWu/ElFMsZq6ZgI+n+88AAwPD3+n6WDk8+Cf/U9n/q4fvXr0yNYvf7nHhBjxW5YJgSc/HP1aAACj0YiqqipIkoRUKiWNjY3Jio9VP08p9nC/efOme2JiIjRXfgRhCkAjgBAAt8PhABE51SlXBTNzqKioyONyuRIa200DOKOyP/m2QRkgAHCqghkI2Ss2HL9/oWZErR4QRREjIyMoKirCjh07MDY2hsnJSbfZbFYbkdLpdOrRo0fSixcvYLPZoPF3QvnSqCAI7mw2K+v1+oS6uIgoYbfbncXFxQEAEaV6qDHHMvNhIrq4rWxDYlQZLCYkvv20ct+RnRsDisU8AEDq5vLs2TPMzMzg1atXMJlMKC4uDpSVlQFAbHR0NJBKpSSj0QiTyYTKykp10RIAPHjw4CuNjaKDg4OYnp6OAvDs2bMnodPpPMqMRevq6tq0pWx4eHge+033U+4d+quHQMd+9m0bKTcVzLHV1dVt8zaXyspKWCwWGI1GvHz5Up3aqZmZmcbnz59LOp0OW7ZsmROsjbq6ujZBEGRmjgCQ9Hp9DIC1oqIiqtPprMwcEQRBXigYAKqrq9uYWVZGUvqoWOwnJutn+0w95aYCqzI7sip40Y6o1+thsVhgNptRUFDgBoBMJuM2m82wWq0oLCxcsvjX1tb2i6IYAhAtLy+fAgBJkiQAUVEUI7W1tUtuIDU1Nf3MHAIQPe4smQKAwztNklIIIjU1NfNYyp898qKXPzBRfqTzope2B3w+XwOA/Svk9gWDwdsLb966dYt7enqWBevr63Hy5Mn1s6HX620Ih8MyM2O5KxwOy16vt0F7r6Ojg8PhMK+C5Y6OjhXzVnvB6/XKq01emOv1enkN7LqJzi/EvOjlRNvtdnR1dckrJXZ1dcl2u33ePYXlVbC8kM0liJkbWltb9z9+/BgAcPDgQZw6dWquEzdv3pR7e3tht9vh9/v7AMwre62trbyAJQ3LGnb9Sp6yIhuYWWZmuaWlRdZWCeW9rOQsu6pbWlpYWyXWs2K8q3rcVv7rkP1+f5/dbofP59NaRl44wu8Kv99PCsv/9kK8rRW+Vi9qha+njxd6Ol/y8qLzoj/0ebq9vV1OJpMYHx9fMmnz5s2wWCw4e/bsvJ2zvb2d18Cu2+YixONx7N27FzabDYKweOBtNhsOHTqEeDy+6FkubE6i0+k07ty5g8LCQuzatQsGgwEAYDAYsHv3bhgMBnR2diKdTi+Cc2HXxdMDAwNIp9NwOBwAAIfDgXQ6jYcPH67YSC5szgtxaGgIyWQSJ06cQDKZxNDQ0KobyoV9rx+22hgfH0dnZ+d7NZYLm6/T/8XIH5jyopeJfwYAKLoOCx8OjscAAAAASUVORK5CYII=') !important; }",
+      ".tf-icon { background-image: url('data:image/png;base64,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') !important; }",
       "#tf #tf-widget-logo { width:48px; height:33px; -moz-border-radius:0 !important; -webkit-border-radius:0 !important; border-radius:0 !important; background: @link url('data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAhCAYAAACfiCi5AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA2RpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDo2RjFCMDk3MkM3OUFFMDExOTFGREJBRDY5RjdFM0NDQiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpFNTM0MTE4MDlGMTAxMUUwOEQyNUYyQUNFN0UzMkE1QiIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpFNTM0MTE3RjlGMTAxMUUwOEQyNUYyQUNFN0UzMkE1QiIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ1M1IFdpbmRvd3MiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo3MDFCMDk3MkM3OUFFMDExOTFGREJBRDY5RjdFM0NDQiIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo2RjFCMDk3MkM3OUFFMDExOTFGREJBRDY5RjdFM0NDQiIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PnS9gtwAAATPSURBVHja7JhbaBRnFMe/SbKb3Wyym2Q3S5MSi/XW4gWLta22FGvBNkhflOKD+CKKL5UKQvsi+CBKL9QXsQj23jcf2lJolYI+CNJCpSCtIoSIa811L7lubptk/P/H8y3DOjuZvaAIOfBjNjPffHP+53znzDcxTJh6iq1GPeW2JGBJQIVWV+T8ELgOVoPngO8J+pgCtyXYW70KuAN2ggBYDjaCV+S4Ejzjcm8lNgruglvgbwkinU+CXU4CjCJtdBy8CHodrjWBZZKdl8A28HqZyzEBroA/xWkGbhAsOIw9Dw48ctYsbieozSNbwB+md0uBwyDicf5OMOw0kZuALHirBBHM5kkPzt8EL5Qwrx/8VmwytcjDxsCHoLGEB37rMl8GrCkxs9fcHHQVkMvl9M/b4Ch41sND4yBZZMqPPdzvA13gki2ImbIE9PX1mb29vebY2Jg5NzfHU2lwAexaZP1+4TAdRcVc7tkIPgd3Zfx1cAhEwe9lCchkMmZ3d7fZ09NjJhIJc2hoyJycnDQXFhZ4OQHOgk0OzrwM5gum+85hXFiK+YaMuQ9Oixg9JiaBczTDbTc6Pz+vkAWF6OuOpQzDUD6fTzU0NKjGxkbl9/tzuPQNOCYvHZof/CutVtsecMH2917wGYiBX8D34DKYKXDjDPigmI/GYttpRFwNDg4+HAzntRBSU1OjAoGAam5u5vEmLnWB/+XWH8A++U2n1oIe+fsTcAR8Cr6y3VNo74GfQW3ZeyFGOh6PW85j6eSF0HktcGBgQGWz2bXijJ7zhm2aezYn+Ub9COwAx12cfxf86Oa8JwFcRvX19aqjo0OFQqG8EKKzwGMqlVLoWjvEMVp3wdZkVvZUp8BhcLXII1dxDOb/dXZ2NlLuZi5vXP/9/f0qHA6rWCxmnZuamsrD6xRFocPDw8zWfgy5JNsQLk9DMkDbLnVy1r6MZZ/1DngbbJ6YmAhyLgaO2a9IACch6EgKE1tCWLyEkec5tFk1MzNjLSdE7Q0UdkD2NNMgaCtu1sg5PbXUyEEKYEYZkPHxcWseWltbm6o4A7SWlhY1PT1tRZlCRkZGLFEUwWXV1NRkRT+dTlNQe2trK3et/4CJAgFh8JMU9NcIwKucl0HgUXc7Gudmg6iKAN1p6KTuRHwgI0ZBFEGRNDqD369h3F+yPWYYB0BUWmsIXESkO5k5ZCzfnnV9IYMKQajog8YxC7W1tVb0daT0A0dHRy0xTDmXEtgs0RuR2/vACvAfnP0ymUx2Umhha6YxGNFoVNXV1VVXgJV/rH8+gM4yA+g6lhjCSOJNbUUOTq2XWzK2Lzyeex/dajcjz+7FgNBRvhgZ9WAwaC3NanxSFjU+VBcxhdjfB8wEnWtvb38ep5rFcS3kTVyznOe9DAadZ11pEdX8JlZe2ivf0PptzOhxCbFOsMxCWHJrMKyfQ1kyGL+BApkhRlnXEI88p2vosQlg1FjYLGJGlTCKkUhE18Y6iKOANJsK6mIVo85M8R5duBTPLlbt/0p4MtkD5V9orAlmgOfh/Cb5KGcHWg7BcTrOoucSYgCYCW5V9DJ87AJ0i7X3a4php0KX2QJHuYXIwumtEGbQcWaoEodL3o1WUCM5RJlLiHv+SYjoYAOothlL/51eElCZPRBgAI9K4+Nl7F3ZAAAAAElFTkSuQmCC') no-repeat 0 0 !important; }", 
       ".tf-hot { background:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAANEgAADToB6N2Z3gAAATRJREFUKJGFj71Kw2AUht/vL1++/CDYYhsEU0sVKVjELB0UwaEiOCp4AYKL0lXwGnSyFyB2K3gBDo4OLkKRLoIgtdClWGgg2MTGQYUMRt/tObzPORyCRO4L2JgAw2iE57UBRvglNAlsCofSwaW1iLMHF4V/BVXBMSP8mjtsX1ToeXsBxT+F8hUGdGhcMF925DrZ0cr6aWfJzqQKAKBMLatNc4PNToQokm3dEV6q0PMcQ1NqVy5HrrRjSDd2eFZsJTs8Cdq8OqIrbyd0NbAggHguQvQoa6mCnKEH3PNtYsffGyKMlSilCtzgJelkAC3/NRj3AV3oqT/w0GzitRqSXB0kVwd61ZCFZjP1ggjsBu66JvynGkBA2t0b6luNZIckId4Dg9rMQ8YuAOCdvCC47ZMWPn46n48JSGCDChj7AAAAAElFTkSuQmCC') no-repeat 0 0; }",
       '.tf-hot { padding-left: 15px; }',
@@ -3505,7 +3618,7 @@ var TweetfilterPrototype = function() {
       '#tf-stream-nav a.top b { top: 10px; }',
       '#tf-stream-nav a.layout i { border:0; width: 15px; height:13px; background-color:#666; background-position:0 0; left:2px; top:3px; }',
       '#tf-stream-nav a.layout:hover i { background-color:@link;  }',
-
+      
       '#tf ul.tf-filters { overflow:hidden; list-style:none; margin:0; padding:0; }',
       '#tf ul.tf-filters > li { float:left; padding:3px; margin:0; width:48px; border-right:1px solid #ebebeb; }',
       '#tf ul.tf-filters > li.invert { border-right:0; min-width:48px; }',
@@ -3662,10 +3775,13 @@ var TweetfilterPrototype = function() {
       '.tweet-actions a span b, .tf-actions a span b { display:none; }',
       '.tf-actions a { outline:0 !important; text-decoration:none !important; }',
       '.tf-actions a span b { font-weight:400; }',
-      '.tf-actions a span i { text-indent:-99999px; background:transparent url(../img/sprite-icons.png) no-repeat; width:15px; height:15px; display:inline-block; vertical-align:baseline; position:relative; margin:0 3px -3px 2px; }',
+      '.tf-actions a span i { text-indent:-99999px; background:transparent '+this._spritesurl+' no-repeat; width:15px; height:15px; display:inline-block; vertical-align:baseline; position:relative; margin:0 3px -3px 2px; }',
       '.tf-actions a.tf span b { display:none; }',
       '.tf-actions a.tf.dm span i { background-position:4px -30px; }',
       '.tf-actions a.tf.dm:hover span i { background-position:-11px -30px; }',
+      '.tf-actions a.tf.mark span i { background-position:1px -43px; }',
+      '.tf-actions a.tf.mark:hover span i { background-position:-14px -43px; }',
+      '.tf-last-read .tf-actions a.tf.mark span i { background-position:-29px -43px; }',
       '.tf-actions a.tf.quote span i { background-position:2px -15px; }',
       '.tf-actions a.tf.quote:hover span i { background-position:-13px -15px; }',
       '.tf-actions a.tf.menu span i { background-position:-15px 1px; }',
@@ -3707,6 +3823,13 @@ var TweetfilterPrototype = function() {
       '#tf-compact-activities { display:none; }',
       '#tf-compact-activities ul.user-stats > li { padding: 0 9px; }',
       '#tf-compact-activities ul.user-stats li:first-child { padding-left:0 !important; }',
+      '#tf-compact-activities h2.dashboard-profile-title { height: 30px; }',
+      '#tf-compact-activities div.user-info { clear:both; line-height:1.2em; font-size:12px; margin-bottom:10px; }',
+      'div.dashboard div.tf-following, div.dashboard div.tf-followers { float:left; width: 50%; height:58px; overflow:hidden; margin-bottom:15px; }',
+      'div.dashboard div.tf-following:hover, div.dashboard div.tf-followers:hover { height:84px; }',
+      'div.dashboard div.tf.activities { display:none !important; }',
+      'div.route-home div.tf.user-info,',
+      'div.route-profile div.tf.user-info { display:none !important; }',
       'body.tf-compact-activities div.dashboard .component.tf.activities, ',
       'body.tf-compact-activities div.dashboard .component.tf.stats, ',
       'body.tf-compact-activities div.dashboard .component.tf.following { display:none; }',
@@ -3732,6 +3855,10 @@ var TweetfilterPrototype = function() {
       'body.tf-fixed-dashboard div.dashboard { position:fixed; margin-left:540px;  width: 340px;  }',
       'body.tf-hide-trends div.dashboard > div.component.trends { display:none; }',
       'body.tf-hide-wtf div.dashboard > div.component.wtf { display:none; }',
+      'body.tf-hide-following #tf-following-component { display:none; }',
+      'body.tf-hide-following #tf-followers-component { width: 100%; height: 58px !important; }',
+      'body.tf-hide-followers #tf-followers-component { display:none; }',
+      'body.tf-hide-followers #tf-following-component { width: 100%; height: 58px !important; }',
       'body.tf-hide-ad div.dashboard > div.component.ad { display:none; }',
       'body.tf-hide-invite div.dashboard > div.component.invite { display:none !important; }',
       'body.tf-minify-menu div.footer.inline-list li { display:none }',

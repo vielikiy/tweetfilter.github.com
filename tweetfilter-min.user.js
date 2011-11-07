@@ -129,7 +129,7 @@ this.poll((status?'add':'remove')+'class',[option]);break;case'enable-tweeplus':
 break;case'show-friends':this.poll((status?'add':'remove')+'class',[option]);this.poll('refreshfriends');break;}
 if(clicked&&!!this.widget){$('[data-option='+option+']',this.widget).closest('li').toggleClass('checked',status);}
 if(clicked&&this.status.initialized){this.savesettings();this.poll('refreshoptions');if(polls.length){this.poll(polls)}}
-return true;};Tweetfilter.prototype.setstreamtitle=function(){var sm,streamtitle=this.stream.title();$('#tf-stream-title').html(streamtitle);if((sm=this.sm)){var titlecontainer=$('div.stream-items div.stream-title:first');if($('.subtabs',titlecontainer).length){return true;}
+return true;};Tweetfilter.prototype.setstreamtitle=function(){var sm,streamtitle=this.stream.title();$('#tf-stream-title').html(streamtitle);if((sm=this.sm)){var titlecontainer=$('div.main-content div.stream-title:first');if($('.subtabs',titlecontainer).length){return true;}
 var textcontainer=$('> h2',titlecontainer);if(!textcontainer.length){textcontainer=$('<h2></h2>');titlecontainer.prepend(textcontainer);}
 if(textcontainer.is(':empty')){textcontainer.html(this.stream.title);}else if($('span.stream-tab-title-inner',textcontainer).length){textcontainer=$('span.stream-tab-title-inner',textcontainer);}else if($('>span',textcontainer).length){textcontainer=$('>span',textcontainer);}
 if(this.getoption('filter-disabled')){$('> em, > div.tf',textcontainer).remove();}
