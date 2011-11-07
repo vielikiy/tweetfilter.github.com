@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name             Tweetfilter
-// @version          2.1.1
+// @version          2.1.2
 // @namespace        Chilla42o
 // @description      Tweetfilter is a highly customizable timeline filter and feature extension for twitter.com
 // @homepageURL      http://tweetfilter.org
@@ -44,7 +44,7 @@ var TweetfilterPrototype = function() {
     this.color_excluded = '#E5F4AC'; // tweets matching excluded filters
     this.color_me = '#FFFAB4'; // tweets written by current user
     
-    this.version = '2.1.1'; //current visible script version
+    this.version = '2.1.2'; //current visible script version
     this._heartbeat = 420/2; //amount of ms between poll ticks which perform various filter actions. don't set below 50
     
     // internal route, page and stream declarations
