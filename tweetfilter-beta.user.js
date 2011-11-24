@@ -9,9 +9,14 @@
 // @icon             http://tweetfilter.org/icon32.png
 // @icon64           http://tweetfilter.org/icon64.png
 // @domain           twitter.com 
-// @match            *://twitter.com/
-// @match            *://twitter.com/?*
-// @match            *://twitter.com/#*
+// @include          http://twitter.com/
+// @include          https://twitter.com/
+// @include          http://twitter.com/#*
+// @include          https://twitter.com/#*
+// @match            http://twitter.com/
+// @match            https://twitter.com/
+// @match            http://twitter.com/#*
+// @match            https://twitter.com/#*
 // @include          /^https?://twitter\.com/(\?.*)?(#.*)?$/
 // @noframes         1
 // ==/UserScript==
