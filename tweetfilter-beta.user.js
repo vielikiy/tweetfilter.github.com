@@ -63,14 +63,15 @@ var TweetfilterScript = function() {
     var streammap = { //streamItemType => stream namespace
      "tweet": ["Home", "Mentions", "RetweetsByOthers", "RetweetsByYou", "YourTweetsRetweeted", "Search", "List", "User", "Favorites", "FollowingTweets"],
      "user": ["ListMembers", "ListFollowers", "Followers", "SocialContextStream", "Friends", "UserRecommendationsStream", "SuggestionCategoryMembersStream"],
-     "activity": ["ActivityOfMeStream","ActivityByNetworkStream"]
-     //only the itemtypes of interest = tweet+user
+     "activity": ["ActivityOfMeStream","ActivityByNetworkStream","ActivityByUserStream"]
+     //only the itemtypes of interest
     };
     this._routemap = { //route.name => stream namespace (from stream._cacheKey)
       "index": "Home",
       "home": "Home",
       "mentions": "Mentions",
       "activity": "ActivityByNetworkStream",
+      "userActivity": "ActivityByUserStream",
       "yourActivity": "ActivityOfMeStream",
       "retweetsByOthers": "RetweetsByOthers",
       "retweets": "RetweetsByYou",
@@ -137,6 +138,7 @@ var TweetfilterScript = function() {
           case 'RetweetsByYou':return 'Retweets by you';break;  //filter.retweets = false;
           case 'RetweetsByOthers':return 'Retweets by others';break;  //filter.retweets = false;
           case 'YourTweetsRetweeted':return 'Your Tweets, retweeted';break;
+          case 'ActivityByUserStream':return this.stream.whose()+' Activity';break;
           case 'ActivityByNetworkStream':return 'Your friends\' Activity';break;
           case 'ActivityOfMeStream':return 'Your Activity';break;
           case 'Search':
@@ -1266,6 +1268,14 @@ var TweetfilterScript = function() {
         submenu.one('mouseleave', function() {$(this).css('visibility', 'hidden');});
       });
     }
+    var profiletabs = $('div.profile-header .stream-tabs');
+    if (profiletabs.length && !$('.stream-tab-activity', profiletabs).length) {
+      $('.stream-tab-tweets', profiletabs).after([
+        '<li class="stream-tab stream-tab-activity'+(this._stream.namespace=='ActivityByUserStream' ? ' active' : '')+' tf-activity-tab">',
+          '<a class="tab-text" title="User Activity" href="/#!/'+this._stream.params.screenName+'/activity">'+_('Activity')+'</a>',
+        '</li>'        
+      ].join("\n"));
+    }    
     var dashboard = this.cp.$node.find(".dashboard");
     var components = $("> div.component", dashboard);
     var enableoptions = [], disableoptions = [];
