@@ -9,14 +9,9 @@
 // @icon             http://tweetfilter.org/icon32.png
 // @icon64           http://tweetfilter.org/icon64.png
 // @domain           twitter.com 
-// @include          http://twitter.com/
-// @include          https://twitter.com/
-// @include          http://twitter.com/#*
-// @include          https://twitter.com/#*
-// @match            http://twitter.com/
-// @match            https://twitter.com/
-// @match            http://twitter.com/#*
-// @match            https://twitter.com/#*
+// @match            *://twitter.com/
+// @match            *://twitter.com/?*
+// @match            *://twitter.com/#*
 // @include          /^https?://twitter\.com/(\?.*)?(#.*)?$/
 // @noframes         1
 // ==/UserScript==
@@ -562,7 +557,7 @@ var TweetfilterScript = function() {
           if ((this.cs = this.sm.getCurrent())) {
             if (this._stream.key !== this.cs._cacheKey) { //has stream switched
               this._isprotected = this.cs.params.hasOwnProperty('canViewUser') ? !this.cs.params.canViewUser : false; 
-              if ((this.cs.items && this.cs.items.length && ($("div.stream-item", this.sm.$streamContainer).length == this.cs.items.length)) || (this._isprotected || this.cs.$find('.no-members,.stream-end').length)) {
+              if ((this.cs.items && this.cs.items.length && $("div.stream-item", this.sm.$streamContainer).length) || (this._isprotected || this.cs.$find('.no-members,.stream-end').length)) {
                 //check if it's the expected stream
                 var namespace = decodeURIComponent(this.cs._cacheKey);
                 if (namespace.indexOf('{')>-1) namespace = namespace.substr(0,namespace.indexOf('{'));
@@ -1909,7 +1904,7 @@ var TweetfilterScript = function() {
                         '<span class="tf-rtc tf-show-rt" data-hidetitle="'+_('Hide {{retweet_count}} retweers', {retweet_count:tweet.rtcount})+'">',
                           _('Retweeted {{retweet_count}} times', {retweet_count:tweet.rtcount}),
                         '</span>',
-                      '</span>',
+                      '</span>'
                     ].join("\n");
                     activityrow.html(activityhtml);
                   }
@@ -3878,7 +3873,7 @@ var TweetfilterScript = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-11-22</span> ',
+            '<span class="updated">11-11-24</span> ',
             this.beta ? '<a href="https://raw.github.com/Tweetfilter/tweetfilter.github.com/master/tweetfilter-beta.user.js" target="_blank" class="button red">Update beta</a>' :
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Update current release</a>',
           '</p>',
@@ -4558,6 +4553,50 @@ var TweetfilterScript = function() {
     ]);
     return css.join(';')+';'; 
   };
+
+
+
+  //css3 striped background
+  Tweetfilter.prototype.css3stripe = function(basecolor) {
+    var css = ['background-color: '+basecolor+';',
+			'-webkit-background-size: 20px 20px;',
+			'-moz-background-size: 20px 20px;',
+			'background-size: 20px 20px;' 
+    ]; //fallback to solid fill
+    if ($.browser.mozilla) {
+      css = css.concat(['background-image: -moz-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+                  'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+                  'transparent 75%, transparent);'
+      ]);
+    } else if ($.browser.webkit) {
+      css = css.concat(['background-image: -webkit-gradient(linear, 0 0, 100% 100%,',
+                    'color-stop(.25, rgba(255, 255, 255, .2)), color-stop(.25, transparent),',
+                    'color-stop(.5, transparent), color-stop(.5, rgba(255, 255, 255, .2)),',
+                    'color-stop(.75, rgba(255, 255, 255, .2)), color-stop(.75, transparent),',
+                    'to(transparent));'
+      ]);
+      css = css.concat(['background-image: -webkit-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+                  'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+                  'transparent 75%, transparent);'
+      ]);
+    } else if ($.browser.msie) { 
+      css = css.concat(['background-image: -ms-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+                  'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+                  'transparent 75%, transparent);'
+      ]);
+    } else if ($.browser.opera) {
+      css = css.concat(['background-image: -o-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+                  'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+                  'transparent 75%, transparent);'
+      ]);
+    }
+    //always include the w3c method
+		css = css.concat(['background-image: linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+								'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+								'transparent 75%, transparent);'
+    ]);
+    return css.join("\n"); 
+  };
   
   //css3 box-shadow
   Tweetfilter.prototype.css3shadow = function(blur, color, hoffset, voffset) {
@@ -4737,7 +4776,7 @@ var TweetfilterScript = function() {
       }
       /* highlight excluded tweets */
       if (this.getoption('highlight-excluded') && this.cs.filter.excluded.length) { //highlight tweets matching a filter exclusion
-        style.push('#t'+this.cs.filter.excluded.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.excluded, '0.4'), '#FFFFFF')+' }'); //gradient
+        style.push('#t'+this.cs.filter.excluded.join(',#t') + ' { '+this.css3stripe(twttr.helpers.hexToRGBA(this.colors.excluded, '0.9'))+' }'); //gradient
       }
       if (this.getoption('hide-promoted-tweets') && this.cs.filter.promoted.length) {
         style.push('#t'+this.cs.filter.promoted.join(',#t')+' { '+hidecss+' }');
@@ -4746,12 +4785,12 @@ var TweetfilterScript = function() {
     }
     /* highlight replies to me (overwrites excludes, if colliding) */
     if (this.getoption('highlight-mentionsme') && !this.stream.ismentions() && this.cs.filter.mentionsme.length) { //highlight tweets mentionining current user
-      style.push('#t'+this.cs.filter.mentionsme.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.reply, '0.4'), '#FFFFFF')+' }'); //gradient
+      style.push('#t'+this.cs.filter.mentionsme.join(',#t') + ' { '+this.css3stripe(twttr.helpers.hexToRGBA(this.colors.reply, '0.9'))+' }'); //gradient
     }
     /* highlight own tweets */
     if (this.getoption('highlight-me') && !this.stream.ismytweets() && this.cs.filter.me.length) 
     { //highlight tweets written by current user
-      style.push('#t'+this.cs.filter.me.join(',#t') + ' { '+this.css3gradient(twttr.helpers.hexToRGBA(this.colors.me, '0.4'), '#FFFFFF')+' }'); //gradient
+      style.push('#t'+this.cs.filter.me.join(',#t') + ' { '+this.css3stripe(twttr.helpers.hexToRGBA(this.colors.me, '0.9'))+' }'); //gradient
     }
     this.setcss('filter', style.join("\n"));
     $('body').toggleClass('tf-filter-inverted', inverted);
