@@ -931,7 +931,7 @@ var TweetfilterScript = function() {
     this.enableoption(['copy-expanded'], this.options['expand-links']);
     this.enableoption(['add-selection'], !filterdisabled && (this.stream.istweets() || this.stream.isactivity()) );
     this.enableoption(['highlight-me'], this.stream.istweets() && !this.stream.ismytweets());
-    this.enableoption(['highlight-mentionsme'], (this.stream.istweets() || this.stream.isactivity) && !this.stream.ismentions());
+    this.enableoption(['highlight-mentionsme'], (this.stream.istweets() || this.stream.isactivity()) && !this.stream.ismentions());
     this.enableoption(['highlight-excluded'], !filterdisabled && this.stream.istweets());
     this.enableoption(['show-br'], this.stream.istweets());
     this.enableoption(['hide-promoted-tweets'], this.stream.istweets());
@@ -1613,7 +1613,7 @@ var TweetfilterScript = function() {
   
   //process items combining html stream and cache
   Tweetfilter.prototype.parseitems = function() { 
-    var i=0, data, filteredcount, nextid, itemcount;
+    var i=0, data, filteredcount, nextid, itemcount, item, itemid;
     switch(this.cs.streamItemType) {
       case 'activity':
         if (!this.cs.hasOwnProperty('filter')) {
@@ -1634,6 +1634,39 @@ var TweetfilterScript = function() {
             mentionsme: [] //retweets or favorites mentioning current user
           };
         }
+        this.stream.sinceid = this.cs._sinceId;
+        if (this.cs.filter.items.length < this.cs.items.length) {
+          i = 0;
+          filteredcount = this.cs.filter.items.length;
+          nextid = this.cs.filter.items.length;
+          itemcount = this.cs.items.length;
+          while (filteredcount < itemcount) {
+            data = this.cs.items[i];
+            itemid = [data.attributes.min_position, data.attributes.max_position, data.attributes.action, data.attributes.timestamp].join('_');
+            if (i < filteredcount) {
+              if (this.cs.filter.itemids.hasOwnProperty(itemid)) {
+                i = filteredcount;
+              }
+            }
+            var tweet = {
+              id: nextid++,                                    //small unique id in stream. tweet in stream will get id="tf<id>"
+              tweetid: itemid,                                //real (long) item id 
+              action: data.action,
+              text: ''
+            };
+            if (tweet.action.indexOf('_') > 0) {
+              tweet.action = tweet.action.split('_')[0];
+            } 
+            tweet['is'+tweet.action] = 1; 
+            //feed filter index
+            this.cs.filter.items.push(tweet);
+            this.cs.filter.itemids[itemid] = tweet.id;            
+            //this.checktweet(tweet);
+            filteredcount++;
+            i++;
+          }
+        }
+        this.poll('parsestream');    //always trigger parsestream, new items are already cached before they are displayed 
       break;
       case 'tweet': //tweet stream
         if (!this.cs.hasOwnProperty('filter')) {
@@ -1712,6 +1745,7 @@ var TweetfilterScript = function() {
               tweet.rt = {
                 userid: data.retweetingStatus.user.idStr,
                 username: data.retweetingStatus.user.screenName.toLowerCase(),
+                image: data.retweetingStatus.user.profileImageUrl,
                 via: data.retweetingStatus.source,
                 source: data.retweetingStatus.source.toLowerCase()
               };
@@ -1856,7 +1890,7 @@ var TweetfilterScript = function() {
   
   //main function picking up items from html stream and performing DOM-Operations on tweets
   Tweetfilter.prototype.parsestream = function() {
-    if (!this.stream.istweets() && !this.stream.isusers()) {
+    if (!this.stream.istweets() && !this.stream.isusers() && !this.stream.isactivity()) {
       return true; //stop polling this function, not a tweet/user stream
     }
     if (this.getoption('expand-new')) {
@@ -1868,7 +1902,7 @@ var TweetfilterScript = function() {
       this.poll('parseitems');
       return true;
     }
-    var items = $('> div.stream-items > div.stream-item:not([id^=t])', this.cs.$node);                      //parse stream only once, distribute ids
+    var items = $('#stream-items-id > div[data-item-id]:not([id^=t])', this.cs.$node);                      //parse stream only once, distribute ids
     if (items.length) {
       var item, itemid, id, i, imax, tweet, user, li, reparseitems = false;
       switch(this.cs.streamItemType) {
@@ -1899,6 +1933,11 @@ var TweetfilterScript = function() {
               $('span.tweet-full-name', item).after('<i class="tfu u'+tweet.userid+'"></i>');
               if (tweet.rt && tweet.rt.userid) {
                 $('.stream-activity-line > span.user b', item).after('<i class="tfu u'+tweet.rt.userid+'"></i><span class="tf-via">via '+tweet.rt.via+'</span>');
+                $('div.tweet-image', item).addClass('primary').after([
+                    '<div class="tweet-image secondary">',
+                      '<img width="32" height="32" data-user-id="'+tweet.rt.userid+'" class="user-profile-link js-action-profile-avatar" alt="'+tweet.rt.username+'" src="'+tweet.rt.image+'">',
+                    '</div>'                  
+                ].join("\n"));
               }
               if (tweet.rtcount) {
                 var activityrow = $('div.tweet-row.tweet-activity-retweets', item), activityhtml;
@@ -1959,22 +1998,35 @@ var TweetfilterScript = function() {
           }
           break;
         case 'activity':
-          var itemclass = item.attr('class'), activitytype;
-          if ((activitytype = itemclass.match(/js\-activity-(\b)/))) {
-            switch(activitytype[1]) {
-              case 'follow':
+          for (i=0, imax=items.length, item; i<imax && (item=items.eq(i)); i++) {
+
+            itemid = item.attr('data-item-id');
+            if (this.cs.filter.itemids.hasOwnProperty(itemid)) {
+              id = this.cs.filter.itemids[itemid];
+              tweet = this.cs.filter.items[id];
+              item.attr('id', 't'+id)
+              switch(this._stream.namespace) {
+                case 'ActivityByNetworkStream':
+                  switch(tweet.action) {
+                    case 'favorite':
+                      $('div.stream-item-activity-line:first > img', item).wrap('<div class="tweet-image secondary"></div>')
+                        .parent().before($('div.tweet-row-user:first > div.tweet-image', item).addClass('primary'));
+                      break;
+                    case 'follow':
+                      break;
+                    case 'list':
+                      break;
+                    case 'mention':
+                      break;
+                    case 'retweet':
+                      break;
+                  }
                 break;
-              case 'favorite':
-                break;
-              case 'list_member_added':
-                break;
-              //only in @username
-              case 'mention':
-                break;
-              case 'retweet':
-                break;
+              }
+            } else {
+              reparseitems = true;
             }
-          } 
+          }
           break;
       }
       if (reparseitems) { //some items were not parsed, trigger a reparse
@@ -2214,7 +2266,7 @@ var TweetfilterScript = function() {
                   if (this.friends.uids[uid] > 1) { //and it was a follower or a mutual friend before (skipping the ones which were only followings)
                     unids.push(uid); //remember user id for later request
                   }
-                } else if ((this.friends.uids[uid] > 1) && (this.friends.fids[uid] < 2)) { //was a follower or a mutual friend before and is not following anymore
+                } else if (this.friends.fids[uid] === 1 && this.friends.uids[uid] === 4) { //was a mutual friend before and is not following anymore
                   unids.push(uid); //remember user id for later request
                 }
                 if (unids.length == 36) { //maximal count of unfollowers (3 rows)
@@ -3888,7 +3940,7 @@ var TweetfilterScript = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-11-24</span> ',
+            '<span class="updated">11-11-26</span> ',
             this.beta ? '<a href="https://raw.github.com/Tweetfilter/tweetfilter.github.com/master/tweetfilter-beta.user.js" target="_blank" class="button red">Update beta</a>' :
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Update current release</a>',
           '</p>',
@@ -3911,7 +3963,20 @@ var TweetfilterScript = function() {
   Tweetfilter.prototype.widgetcss = function() {
     return [
       'html { overflow-y:scroll; min-height:100%; }', //force scrollbar, remove horizontal jumps (opera)
-      
+      'div.stream { min-height:0 !important; }',
+      '.tweet-image.primary, .tweet-image.secondary { position:relative; z-index:1; border:2px solid #fff; margin:-2px; background:#fff; }',
+      '.tweet-image.primary:hover { z-index:2; }',
+      '.tweet-image.primary { width:42px; height:42px; }',
+      '.tweet-image.primary img { width:42px; height:42px; }',
+      '.tweet-image.secondary { height:32px; width:32px; margin:25px 0 0 -25px; border:2px solid #fff; }',
+      '.tweet-image.secondary:hover { z-index:3; }',
+      '.tweet-image.secondary img { height:32px; width:32px; }',
+      '.stream-item-activity-line > div.tweet-image { position:absolute; }',
+      '.stream-item-activity-line > div.tweet-image > img { position:static !important; }',
+      '.stream-item-activity-line > div.tweet-image.primary { left:20px; top:10px; }',
+      '.stream-item-activity-line > div.tweet-image { position:absolute; }',
+      '.stream-item-activity-line > div.tweet-image.secondary { left:65px; top:10px; }',
+      'div.tweet-row-user-data > span.tweet-user-name { display:none !important; }',
       '#tf { display:block !important; bottom: 0; margin-left: 586px; position: fixed; text-align:left; '+this.css3rounded('0 4px 0 0')+' font-family:Arial,"Helvetica Neue",Helvetica,sans-serif; background:#fff; position:fixed; bottom:0; z-index:1; width: 385px; '+this.css3shadow('2px', 'rgba(0, 0, 0, 0.3)')+' border:1px solid #bbb; border-bottom:0; }',
       '#tf.hidden { display:none !important; }',
       '#tf * { padding:0; margin:0; list-style:none; color:@darktext; }',
@@ -4219,8 +4284,9 @@ var TweetfilterScript = function() {
       'body.tf-show-timestamp .main-content a.tf-timestamp { display:inline; }',
       'body.tf-hide-promoted-content .promoted-trend,',
       'body.tf-hide-promoted-content .promoted-account { display:none !important; }',
-      'body.tf-show-classictabs div#stream-items-id div.js-activity-reply, #stream-items-id div.js-activity-retweet, #stream-items-id div.js-activity-mention { display:none !important; }',
-      'body.tf-hide-follow div#stream-items-id div.js-activity-follow { display:none !important; }',
+      'body.tf-show-classictabs div#stream-items-id div.js-activity { display:none !important; }',
+      'body.tf-show-classictabs div#stream-items-id div.js-activity-favorite { display:block !important; }',
+      'body.tf-hide-follow div#stream-items-id div.js-activity-follow, span.activity-filters { display:none !important; }',
       '.tweet-corner i.tfu { margin-left:-3px; }',
       'i.tfu { display:none; }',
       "body.tf-show-friends i.tfu { background-repeat:no-repeat; display:inline-block; height:13px; width:1px; background-position:0 -60px; background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAxCAYAAADukUiUAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyBpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNSBXaW5kb3dzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOkE0M0U2Mzc3QTg0MDExRTBCOTEzQjM0NTFFRTMzN0NEIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOkE0M0U2Mzc4QTg0MDExRTBCOTEzQjM0NTFFRTMzN0NEIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6QTQzRTYzNzVBODQwMTFFMEI5MTNCMzQ1MUVFMzM3Q0QiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6QTQzRTYzNzZBODQwMTFFMEI5MTNCMzQ1MUVFMzM3Q0QiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6xg46LAAADfUlEQVR42uyWT0gUURzH35/ZnVVnt0xyddR0if5cgog0F5IoKiiiP5dE8GZodDDoEkhQxzpEeI6oYyB0sYu3giKCjlYQCWq0qLlm7t9xZmf6/mbfyGx2sFsHH3x4w+/9fu/3/c3bN7/lExMTzPM8xjn3ZxqYBzE1gXGyh9eEcmBSShaJRJjjOEZLS8u9jo6OsUqlYmqaxoiagGDQAoKGW1tb9yKoWdf10bCz7wMS4IoQ4jgcUo2NjT2UiWSYpnkzl8t1F4vFb/B5B95QQByL15PJZK9hGL5jPp/3d4vH4zHYTiGAzc/PpyFxgQK+I+VAJpN5jqBj0Wh0QwIF27bNFhcXp13X7YeKT5pamMXCUDabnUwkEqlwXci2hLUb8PkU1BDstoqUVqFQCPtTBhvTykbRlFYFtCHt/nK5TJIyMFmwUbY2SOnC/NF/raRX0QAoy13MadCHDW5hXgGJwE8LZf8CLmLX98AhAwIe4fltWBIPH8pWhmD/OLYDtjL8gxsZGfnTfhlcAtdAhQzrjmT7ktm/ZiDbWUCnnd6KpAtgBjxWWeo2ScIYAEfU4g5wGyyB0+CherbA0yAgpT4rY+AXKCn7fRAD58EoBQSSaJcFJccOKXBBJzipXsBCEEDpHoADinCNw+Cl+vnXFE07ryk5cdChMvxQ9pqimSrWAIfAYWCqt1VWNb7FPa4JoGy9oAheqF3PgH4wpT66NQF5VTxdyayyPQGfwc/tK/qfXdHS605WtjXGBTqlG5yJO8g83sQ4G8dRVdfovLyNDGi7Wj0TEYN5TsGI7u67p5vnxjynaHJZx3ikAS7uH5Jg4Bp6XDQxrCdP7NWTfc0i1jTKo4b/G9rURbnUjovojlS06WCPVk83lbM688RNe22u27VsdFEedFEvDpHX68x0byRBV0DimzLn69V3dcb0Xe2nnMIiy81MpT2ntMCLr/aw0rroklrsudF59Jis34maK+odSuZaeZaf+zDtWLl+zmXQRcWss14aKi9PTza0tKeQcUO3tZxZckq5G1xK1UW5Lxc+cpV7JYs589WLyarqkMJmQqwwHnRRUX3PCGmTWmm/U8yz8lokgxosPe6kZIS3caF3ceH5XVSjw/IPDF3UyslV95cY9yryGX1THYtfFYLdgUNCHQPzi6aTpn6MKrsQ/h4Jq12U/kcx0YMn6qJfyfZbgAEAfjx5x2g3QsAAAAAASUVORK5CYII=') }",
