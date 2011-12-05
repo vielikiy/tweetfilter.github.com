@@ -36,8 +36,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-var TweetfilterScript = function() {
-
   function Tweetfilter() {
     //gradient start colors for highlighting tweets, change to your taste
     this.color_reply = '#FFFAB4'; // tweets mentioning current user
@@ -316,7 +314,7 @@ var TweetfilterScript = function() {
       'highlight-excluded':true, /* highlight tweets matching exclusions */
       'search-realtime': true,    /* default searches to "all" tweets */
       'show-classictabs': true,  /* show @mentions and retweets-tabs, hide mentions and retweets in activities */
-      'show-unfollowers': true,  /* show in dashboard who unfollowed you lately */
+      //'show-unfollowers': true,  /* show in dashboard who unfollowed you lately */
       'hide-follow': true,      /* hide all follow action from activity pages */
       'hide-list': true,      /* hide all list action from activity pages */
       'show-friends':true,     /* show who follows you and who you follow */
@@ -374,10 +372,6 @@ var TweetfilterScript = function() {
       },
       morelists: {
         path: 'div.more-lists'
-      },
-      activity: {
-        path: '.dashboard-activity-teaser-inner',
-        option: ['hide-activity', 'expand-activity']
       }
     };
     
@@ -785,12 +779,12 @@ var TweetfilterScript = function() {
         var $detailsPane = cp.$find("div.details-pane:has(.inner-pane.active)"),
             $pageOuter = $("#page-outer"),
             pagePaddingTop = parseInt($pageOuter.css("padding-top"), 10),
-            widgetheight = $('div#tf').height() * +!this.getoption('filter-minimized');
+            widgetheight = $('div#tf').outerHeight() * +!this.getoption('filter-minimized');
         if ($detailsPane.length > 0) {
           var contentHeight = twttr.$win.height() - pagePaddingTop;
           var dpHeight = contentHeight - $detailsPane[0].offsetTop - 8;
           var dpcHeight = dpHeight - $detailsPane.find(".inner-pane.active .pane-toolbar").outerHeight() - widgetheight * +!this.getoption('filter-minimized');
-          dpHeight -= widgetheight;
+          dpHeight -= widgetheight + 10;
           this.setcss('pane', 
             'div.details-pane { height: '+dpHeight+'px !important; }'+
             'div.details-pane .pane-components { height: '+dpcHeight+'px !important; }');
@@ -925,7 +919,6 @@ var TweetfilterScript = function() {
     this.enableoption(['skip-me'], !filterdisabled && !exclusivemode && this.stream.istweets() && !this.stream.ismytweets());
     this.enableoption(['hide-last'], this._page === 'Home');
     this.enableoption(['expand-last'], this._page === 'Home' && !this.options['hide-last']);
-    this.enableoption(['expand-activity'], !this.options['hide-activity']);
     this.enableoption(['hide-tweetbox'], this._page === 'Home' && (this.stream.istweets() || this.stream.isactivity()));
     this.enableoption(['hide-question'], this._page === 'Home' && (this.stream.istweets() || this.stream.isactivity()) && !this.options['hide-tweetbox']);
     this.enableoption(['copy-expanded'], this.options['expand-links']);
@@ -938,7 +931,7 @@ var TweetfilterScript = function() {
     this.enableoption(['show-friends'], (this.stream.istweets() || this.stream.isusers()) && !this.friends.loading && this.friends.expires);
     this.enableoption(['hide-following'], !!document.getElementById('tf-following-component'));
     this.enableoption(['hide-followers'], !!document.getElementById('tf-followers-component'));
-    this.enableoption(['show-unfollowers'], this._page === 'Home' && !!document.getElementById('tf-unfollowers-component'));
+//    this.enableoption(['show-unfollowers'], this._page === 'Home' && !!document.getElementById('tf-unfollowers-component'));
     return true;
   };
 
@@ -1198,7 +1191,7 @@ var TweetfilterScript = function() {
     } else {
       return settings[this.user.id];      
     }
-  }
+  };
   
   Tweetfilter.prototype.compareversion = function(v1, v2) { //returns: 1 if v1 > v2, 2 if v2 > v1, 0 if equal
     if (v1 === v2) return 0;
@@ -1210,7 +1203,7 @@ var TweetfilterScript = function() {
   Tweetfilter.prototype.findcomponents = function() {
     var hometabs = $('.home-header .stream-tabs');
     if (hometabs.length && !$('.stream-tab-mentions', hometabs).length) {
-      hometabs.find('.stream-tab-your_activity,.stream-tab-activity').remove();
+   //   hometabs.find('.stream-tab-your_activity,.stream-tab-activity').remove();
       $('.stream-tab-home', hometabs).after([
         '<li class="stream-tab stream-tab-mentions'+(this._stream.namespace=='Mentions' ? ' active' : '')+' tf-mentions-tab">',
           '<a class="tab-text" title="Tweets mentioning you" href="/#!/mentions">@Mentions</a>',
@@ -1241,7 +1234,7 @@ var TweetfilterScript = function() {
            '</li>',
           '</ul>',
         '</li>',     
-        '<li class="stream-tab stream-tab-activity stream-tab-your_activity dropdown-link tf-activity-tab">',
+        '<li class="stream-tab stream-tab-activity stream-tab-your_activity dropdown-link tf-activity-tabgroup">',
           '<a class="tab-text" href="#">Activity<i></i></a>',
           '<ul class="drop-down" style="left: 0px; right: auto; top: 30px; visibility: hidden;">',
             '<li class="stream-link" data-item-id="">',
@@ -1459,14 +1452,13 @@ var TweetfilterScript = function() {
       case 'show-br': /* show line breaks in tweets */
       case 'small-links': /* show small links */
       case 'show-retweeted': /* show retweeted count */
-      case 'show-classictabs': /* show retweeted count */
+      case 'show-classictabs': /* show mentions and retweets */
       case 'hide-follow': /* hide all follow action from activity */
       case 'hide-list': /* hide all list action from activity */
-      case 'expand-activity':  /* expand activitiy dashboard component */
+      case 'hide-activity':    /* hide the activity tab */
         this.poll((status ? 'add' : 'remove') +'class', [option]);
       break;
       case 'hide-last':   /* hide last tweet */
-      case 'hide-activity':    /* hide the activity dashboard component */
         polls = [];
         this.poll((status ? 'add' : 'remove') +'class', [option]);
         if (!clicked) this.poll('refreshoptions');
@@ -2258,15 +2250,16 @@ var TweetfilterScript = function() {
                 packets: this.friends.fetchedpackets
               };
               this.friends.expires = friends.expires;
-              //check for latest unfollowers 
+              //check for latest unfollowers
+              /*
               var unfollowers = this.getexvalue(this.user.name, {}, 'unfollowers'),
                   unids = [];
               for (var uid in this.friends.uids) {
                 if (!this.friends.fids.hasOwnProperty(uid)) { //no relationship found for a previously known fellow
-                  if (this.friends.uids[uid] > 1) { //and it was a follower or a mutual friend before (skipping the ones which were only followings)
+                  if (this.friends.uids[uid] === 4) { //and it was a mutual friend before (skipping the ones which were only followings)
                     unids.push(uid); //remember user id for later request
                   }
-                } else if (this.friends.fids[uid] === 1 && this.friends.uids[uid] === 4) { //was a mutual friend before and is not following anymore
+                } else if ((!this.friends.fids.hasOwnProperty(uid) || this.friends.fids[uid] === 1) && this.friends.uids[uid] === 4) { //was a mutual friend before and is not following anymore
                   unids.push(uid); //remember user id for later request
                 }
                 if (unids.length == 36) { //maximal count of unfollowers (3 rows)
@@ -2289,7 +2282,7 @@ var TweetfilterScript = function() {
                   error: function () {
                   }
                 })
-              }
+              }*/
               this.friends.uids = this.friends.fids;
               this.friends.fids = {};
               this.friends.loading = false;
@@ -2409,7 +2402,8 @@ var TweetfilterScript = function() {
           tweet.matches.push(query.id);
         }        
       }
-    }   };
+    }   
+  };
 
   Tweetfilter.prototype.addquery = function(query, enabled, stream) {
     if (this.status.settingsloaded && this.getoption('filter-disabled')) {
@@ -2962,7 +2956,7 @@ var TweetfilterScript = function() {
     this.timeids.parselinks = setTimeout((function() {
       this.poll('parselinks', 3);
       this.timeids.parselinks = -1;
-    }).bind(this), 420);
+    }).bind(this), 840);
     return true; //always bubble
   };
   
@@ -3508,15 +3502,15 @@ var TweetfilterScript = function() {
     var friends = $([
       '<div id="tf-following-component" class="component tf tf-following"></div>',
       '<div id="tf-followers-component" class="component tf tf-followers"></div>',
-      '<div style="clear:both"></div>',
-      this._page === 'Home' ? '<div id="tf-unfollowers-component" class="component tf tf-unfollowers"></div><div style="clear:both"></div>' : ''
+      '<div style="clear:both"></div>'
+//      , this._page === 'Home' ? '<div id="tf-unfollowers-component" class="component tf tf-unfollowers"></div><div style="clear:both"></div>' : ''
     ].join("\n"));
     target.after(friends);
-    if (this._page === 'Home') {
+/*    if (this._page === 'Home') {
       $('#tf-unfollowers-component').delegate('a.clear-unfollowers', 'click', (function() {
         this.clearunfollowers();
       }).bind(this));
-    }
+    } */
     this.poll(['refreshactivities','refreshoptions']);
   };
   
@@ -3563,8 +3557,8 @@ var TweetfilterScript = function() {
     var targetusername = this._stream.params.screenName || this.user.name;
     var activities = $('#tf-compact-activities'),
         following = $('#tf-following-component'),
-        followers = $('#tf-followers-component'),
-        unfollowers = $('#tf-unfollowers-component');
+        followers = $('#tf-followers-component')
+       // , unfollowers = $('#tf-unfollowers-component');
     var cached = this.getexvalue(targetusername, false, 'activities');
     if (cached) {
       activities.html(cached);
@@ -3664,6 +3658,7 @@ var TweetfilterScript = function() {
         });
       }      
     }
+    /*
     if (unfollowers.length) {
       if (this.getoption('show-unfollowers')) {
         cached = this.getexvalue(this.user.name, {}, 'unfollowers')
@@ -3700,10 +3695,10 @@ var TweetfilterScript = function() {
       } else {
         unfollowers.css({'display':'none'});
       }
-    }
+    }*/
     return true; //method can be used in poll
   };
-  
+  /*
   Tweetfilter.prototype.clearunfollowers = function() {
     var unfollowers = $('#tf-unfollowers-component');
     if (unfollowers.length) {
@@ -3711,7 +3706,7 @@ var TweetfilterScript = function() {
       this.setexvalue(this.user.name, {}, 'unfollowers', true);
     }
   };
-  
+  */
   Tweetfilter.prototype.isemptyobj = function(obj) {
     if (typeof obj === 'object') {
       for (var p in obj) {
@@ -3898,8 +3893,7 @@ var TweetfilterScript = function() {
               '<li class="disabled tweetstream"><a data-option="hide-wtf"><b></b>hide who to follow</a></li>',
               '<li class="disabled"><a data-option="hide-following"><b></b>hide following</a></li>',
               '<li class="disabled"><a data-option="hide-followers"><b></b>hide followers</a></li>',
-              '<li class="disabled"><a data-option="show-unfollowers"><b></b>show unfollowers</a></li>',
-//              '<li class="disabled"><a data-option="hide-activity"><b></b>hide activity</a></li>',
+//              '<li class="disabled"><a data-option="show-unfollowers"><b></b>show unfollowers</a></li>',
 //              '<li class="disabled"><a data-option="expand-activity"><b></b>expand activity</a></li>',
               '<li class="disabled tweetstream"><a data-option="hide-ad"><b></b>hide advertising</a></li>',
               '<li class="tweetstream"><a data-option="hide-promoted-content" title="hide promoted trends, who to follow"><b></b>hide promoted content</a></li>',
@@ -3915,6 +3909,8 @@ var TweetfilterScript = function() {
               '<li class="tweetstream"><a data-option="hide-question"><b></b>hide question</a></li>',
               '<li class="tweetstream"><a data-option="hide-tweetbox"><b></b>hide main tweet box</a></li>',
               '<li class="tweetstream"><a data-option="small-links" title="smaller link size"><b></b>small links</a></li>',
+              '<li><a data-option="hide-activity" title="hide activity tabs"><b></b>hide activity tabs</a></li>',
+              '<li><a data-option="show-classictabs" title="show classic @mention &amp; retweet-tabs"><b></b>show classic tabs</a></li>',
               '<li><a data-option="alert-message" title="alert when received new direct messages"><b></b>alert new dm</a></li>',
               '<li><a data-option="alert-sound-message" title="play sound when received new direct messages"><b></b>sound on new dm</a></li>',
               '<li><a data-option="alert-mention" title="alert when received new mentions"><b></b>alert new mentions</a></li>',
@@ -3940,7 +3936,7 @@ var TweetfilterScript = function() {
         '<div data-tab="about" class="about">',
           '<p class="version">',
             '<strong>Tweetfilter <span class="version">'+this.version+'</span></strong> ',
-            '<span class="updated">11-11-30</span> ',
+            '<span class="updated">11-12-06</span> ',
             this.beta ? '<a href="https://raw.github.com/Tweetfilter/tweetfilter.github.com/master/tweetfilter-beta.user.js" target="_blank" class="button red">Update beta</a>' :
             '<a href="https://userscripts.org/scripts/source/49905.user.js" target="_blank" class="button">Update current release</a>',
           '</p>',
@@ -4240,17 +4236,22 @@ var TweetfilterScript = function() {
       'body.tf-hide-topbar div#top-stuff[data-focused="1"] div#top-bar { visibility:visible; }',
       'body.tf-hide-topbar div#page-outer { padding-top: 15px !important; }',
       'body.tf-hide-topbar div#details-pane-outer { margin-top:0 !important; top: 25px !important; }',
-      'body.tf-hide-activity div.dashboard .component.tf.activity { display:none !important; }',
-      'body.tf-expand-activity .dashboard-activity-teaser-inner .activity-items { height:auto !important; }',
+      '.tf-mentions-tab, .tf-retweets-tab { display:none !important; }',
+      '.tf-activity-tabgroup { display:none !important; }',
+      'body.tf-show-classictabs .stream-tab-your_activity, body.tf-show-classictabs .stream-tab-activity { display:none; }',
+      'body.tf-show-classictabs .tf-activity-tabgroup { display:block !important; }',
+      'body.tf-show-classictabs .tf-mentions-tab, body.tf-show-classictabs .tf-retweets-tab  { display:block !important; }',
+      'body.tf-hide-activity .tf-activity-tab, body.tf-hide-activity .tf-activity-tabgroup, body.tf-hide-activity .stream-tab-your_activity, body.tf-hide-activity .stream-tab-activity { display:none !important; }',
+      
       'div#details-pane-outer.tracking-vertically { position:fixed; }',
       'div.details-pane { min-width:380px !important; }',
       'body.tf-hide-latest div.dashboard .component.tf.latest .tweet-activity { display:none; }', //not implemented
       'body.tf-fixed-dashboard div.dashboard { position:fixed; margin-left:540px;  width: 340px;  }',
-      'body.tf-hide-trends div.dashboard > div.component.trends { display:none; }',
-      'body.tf-hide-wtf div.dashboard > div.component.wtf { display:none; }',
-      'body.tf-hide-following #tf-following-component { display:none; }',
+      'body.tf-hide-trends div.dashboard > div.component.trends { display:none !important; }',
+      'body.tf-hide-wtf div.dashboard > div.component.wtf { display:none !important; }',
+      'body.tf-hide-following #tf-following-component { display:none !important; }',
       'body.tf-hide-following #tf-followers-component { width: 100%; height: 58px !important; }',
-      'body.tf-hide-followers #tf-followers-component { display:none; }',
+      'body.tf-hide-followers #tf-followers-component { display:none !important; }',
       'body.tf-hide-followers #tf-following-component { width: 100%; height: 58px !important; }',
       'body.tf-hide-ad div.dashboard > div.component.ad { display:none; }',
       'body.tf-hide-invite div.dashboard > div.component.invite { display:none !important; }',
@@ -5220,7 +5221,7 @@ var TweetfilterScript = function() {
   
   window.twtfilter = new Tweetfilter; //create a neighbor of twttr
   
-} 
+ 
 
 if (window.top === window.self && //don't run in twitter's helper iframes
   !document.getElementsByClassName('twtfilterscript').length)  //don't inject multiple times (bookmarklet)
