@@ -35,6 +35,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
+var TweetfilterScript = function() {
 
   function Tweetfilter() {
     //gradient start colors for highlighting tweets, change to your taste
@@ -1191,7 +1196,7 @@
     } else {
       return settings[this.user.id];      
     }
-  };
+  }
   
   Tweetfilter.prototype.compareversion = function(v1, v2) { //returns: 1 if v1 > v2, 2 if v2 > v1, 0 if equal
     if (v1 === v2) return 0;
@@ -2402,8 +2407,7 @@
           tweet.matches.push(query.id);
         }        
       }
-    }   
-  };
+    }   };
 
   Tweetfilter.prototype.addquery = function(query, enabled, stream) {
     if (this.status.settingsloaded && this.getoption('filter-disabled')) {
@@ -5221,7 +5225,7 @@
   
   window.twtfilter = new Tweetfilter; //create a neighbor of twttr
   
- 
+} 
 
 if (window.top === window.self && //don't run in twitter's helper iframes
   !document.getElementsByClassName('twtfilterscript').length)  //don't inject multiple times (bookmarklet)
