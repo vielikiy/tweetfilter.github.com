@@ -788,7 +788,7 @@ var TweetfilterScript = function() {
         if ($detailsPane.length > 0) {
           var contentHeight = twttr.$win.height() - pagePaddingTop;
           var dpHeight = contentHeight - $detailsPane[0].offsetTop - 8;
-          var dpcHeight = dpHeight - $detailsPane.find(".inner-pane.active .pane-toolbar").outerHeight() - widgetheight * +!this.getoption('filter-minimized');
+          var dpcHeight = dpHeight - $detailsPane.find(".inner-pane.active .pane-toolbar").outerHeight() - widgetheight * +!this.getoption('filter-minimized') - 20;
           dpHeight -= widgetheight + 10;
           this.setcss('pane', 
             'div.details-pane { height: '+dpHeight+'px !important; }'+
