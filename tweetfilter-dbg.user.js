@@ -115,22 +115,24 @@ with({
   var _initretries = 21;
 
                                                                                                     var _D = new __D('Tweetfilter');
-                                                                                                    _D.w('tweetfilter!');
+                                                                                                    _D.i('Loading Tweetfilter!');
   (function LoadTweetfilter() {
+                                                                                                    var _D = new __D('LoadTweetfilter');
     if (typeof twttr !== 'object' || typeof jQuery !== 'function') {
                                                                                                     _D.w('twttr / jQuery not loaded yet! retrying another ', _initretries, 'times.')
-      if (--_initretries > 0)
+      if (--_initretries > 0) 
         window.setTimeout(LoadTweetfilter, 210);
     } else {
       if (!twttr.loggedIn) {
                                                                                                     _D.w('not logged in!')
         return;
-      }_D.i('loaded!');
+      }
+                                                                                                    _D.l('twttr is loaded!');
 
       // ############### Storage: handling all local / session storage and packing stuff ################
       
       twttr.klass('Tweetfilter.Storage', function() {
-       
+        
       })
       .methods({
         //get json value from local storage with default
@@ -181,7 +183,6 @@ with({
           }
           return res;
         },
-
         //unpack compressed number
         decodenum: function(numstr) {
           var x=0, digit, res = '', remaining;
@@ -196,7 +197,6 @@ with({
           }
           return res;    
         },
-
         //lzw decompress a string
         encodelzw: function(uncompressed) {
            // Build the dictionary.
@@ -220,7 +220,6 @@ with({
            }
            return result.join('');
          },
-
         //lzw compress a string
         decodelzw: function (compressed) {
           // Build the dictionary.
@@ -280,12 +279,7 @@ with({
            switch(this._pilot._stream.namespace) {
              case 'Home':return 'Home timeline';break;
              case 'Mentions':return 'Mentions';break;
-             case 'RetweetsByYou':return 'Retweets by you';break;  //filter.retweets = false;
-             case 'RetweetsByOthers':return 'Retweets by others';break;  //filter.retweets = false;
-             case 'YourTweetsRetweeted':return 'Your Tweets, retweeted';break;
-             case 'ActivityByUserStream':return this.whose()+' Activity';break;
              case 'ActivityByNetworkStream':return 'Your friends\' Activity';break;
-             case 'ActivityOfMeStream':return 'Your Activity';break;
              case 'Search':
                switch (this._pilot._stream.params.mode) {
                  case 'relevance':return 'Search <em>top Tweets</em>';break;
@@ -295,7 +289,6 @@ with({
                break;
              case 'List':return this.whose()+'List <b>'+this._pilot._stream.params.listSlug+'</b>';break;
              case 'OwnLists':return this.whose()+'Lists';break;
-             case 'MessageStream':return 'Messages';break;
              case 'User':return this.whose()+'Tweets';break;
              case 'Favorites':return this.whose()+'Favorites';break;
              case 'Following':return 'Following';break;
@@ -390,8 +383,155 @@ with({
            return this._pilot._stream.namespace;
          }      
        });
-     
-       
+      
+      //do all the filter related stuff
+      twttr.klass('Tweetfilter.Filter', function() {
+      }); 
+      
+      //all css creation and manipulation
+      twttr.klass('Tweetfilter.Styler', function(main) {
+                                                                                                    var _D = new __D('constructor', 'Styler');
+                                                                                                    _D.d('constructor arguments:', arguments);
+        this.main = main;                                                                                           
+        $('head').append( //create style containers
+          '<style id="tf-layout" type="text/css"></style>',  //contains main widget layout
+          '<style id="tf-options" type="text/css"></style>', //contains options css
+          '<style id="tf-friends" type="text/css"></style>', //display friend status, updated separately
+          '<style id="tf-filter" type="text/css"></style>'   //hide and show single tweets according to filters
+        );
+        this.refreshoptions();
+      }).methods({
+        //set style element contents
+        _setcss: function(id, styles) {
+                                                                                                    var _D = new __D('_setcss', 'Styler');
+                                                                                                    _D.l(id);
+          $('style#tf-'+id).html(styles);
+        },
+        refreshoptions: function() {
+                                                                                                    var _D = new __D('refreshoptions', 'Styler');
+                                                                                                    _D.l('refreshing options css');
+          var styles = '', option, enabled, optioncss;
+          for (var o in this.main.options) {
+            option = this.main.constructor._options[o];
+            enabled = this.main.options[o];
+            if (option.css && (optioncss = option.css[enabled ? 'active' : 'inactive'])) {
+              styles += typeof optioncss === 'string' ? optioncss + "\n" : optioncss.join("\n")
+            } 
+          }
+                                                                                                    _D.d(styles);
+          this._setcss('options', styles);
+        },
+        //css3 linear gradient
+        gradient: function(startcolor, endcolor, vertical) {
+          vertical = typeof vertical === 'undefined' ? 0 : +vertical;  
+          var css = ['background-color: '+startcolor]; //fallback to solid fill
+          var start = vertical ? 'top' : 'left'; 
+          if ($.browser.mozilla) {
+            css = css.concat([
+              'background-image: -moz-linear-gradient('+start+', '+startcolor+', '+endcolor+')' /* FF3.6 */
+            ]);
+          } else if ($.browser.webkit) {
+            css = css.concat([
+              'background-image: -webkit-gradient(linear, left top, '+(vertical ? 'left bottom' : 'right top')+', from('+startcolor+'), to('+endcolor+'))', /* Saf4+, Chrome */
+              'background-image: -webkit-linear-gradient('+start+', '+startcolor+', '+endcolor+')' /* Chrome 10+, Saf5.1+ */
+            ]);      
+          } else if ($.browser.msie) { 
+            css = css.concat([
+             'background-image: -ms-linear-gradient('+start+', '+startcolor+', '+endcolor+')' /* IE10 */
+            ]);      
+          } 
+          css = css.concat([ //always include the w3c method
+           'background-image: linear-gradient('+start+', '+startcolor+', '+endcolor+')' /* W3C */
+          ]);
+          return css.join(';')+';'; 
+        },
+        //css3 striped background
+        stripes: function(basecolor) {
+          if (!Modernizr.cssgradients) {
+            return 'background-color: '+basecolor+';';
+          }
+          var css = ['background-color: '+basecolor+';',
+            '-webkit-background-size: 20px 20px;',
+            '-moz-background-size: 20px 20px;',
+            'background-size: 20px 20px;' 
+          ]; //fallback to solid fill
+          if ($.browser.mozilla) {
+            css = css.concat(['background-image: -moz-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+              'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+              'transparent 75%, transparent);'
+            ]);
+          } else if ($.browser.webkit) {
+            css = css.concat(['background-image: -webkit-gradient(linear, 0 0, 100% 100%,',
+              'color-stop(.25, rgba(255, 255, 255, .2)), color-stop(.25, transparent),',
+              'color-stop(.5, transparent), color-stop(.5, rgba(255, 255, 255, .2)),',
+              'color-stop(.75, rgba(255, 255, 255, .2)), color-stop(.75, transparent),',
+              'to(transparent));'
+            ]);
+            css = css.concat(['background-image: -webkit-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+              'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+              'transparent 75%, transparent);'
+            ]);
+          } else if ($.browser.msie) { 
+            css = css.concat(['background-image: -ms-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+              'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+              'transparent 75%, transparent);'
+            ]);
+          } else if ($.browser.opera) {
+            css = css.concat(['background-image: -o-linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+              'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+              'transparent 75%, transparent);'
+            ]);
+          }
+          //always include the w3c method
+          css = css.concat(['background-image: linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%,',
+            'transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%,',
+            'transparent 75%, transparent);'
+          ]);
+          return css.join("\n"); 
+        },
+
+        //css3 box-shadow
+        shadow: function(blur, color, hoffset, voffset) {
+          if (!Modernizr.boxshadow) {  
+            return 'border:1px solid '+color+'; ';
+          }
+          if (typeof hoffset !== 'string') hoffset = '0';
+          if (typeof voffset !== 'string') voffset = '0';
+          var offset = blur !== 'none' ? hoffset+' '+voffset+' ' : '';
+          var css = [];
+          if ($.browser.webkit) {
+            css.push('-webkit-box-shadow: '+offset+blur+' '+color);
+          } else if ($.browser.mozilla) {
+            css.push('-moz-box-shadow: '+offset+blur+' '+color);
+          }
+          css.push('box-shadow: '+offset+blur+' '+color);
+          return css.join(';')+';'; 
+        },
+        //css3 border-radius
+        rounded: function(radius) {
+          if (!Modernizr.borderradius) {
+            return '';
+          }
+          var css = [];
+          if ($.browser.mozilla) {
+            css = css.concat([ 
+              '-moz-border-radius: '+radius
+            ]);
+          } else if ($.browser.webkit) {
+            css = css.concat([ 
+              '-webkit-border-radius: '+radius,
+              '-webkit-background-clip: padding-box'
+            ]);
+          }
+          css = css.concat([  //always include the w3c method
+            'border-radius: '+radius,
+            'background-clip: padding-box'
+          ]);
+          return css.join(';')+';'; 
+        }                
+      });
+      
+      
       // ############### pilot: watching changes, emitting messages, provide access to dom and twttr objects ################
 
       twttr.klass('Tweetfilter.Pilot', function() {
@@ -421,14 +561,13 @@ with({
         
                                                                                                     _D.d('route name => page name:', this._pages);
                                                                                                     _D.d('stream namespace => stream itemtype:', this._streams);
-        this.initialize();                                                                                             
       })
       .methods(twttr.EventProvider)
       .methods({
         initialize: function() {
                                                                                                     var _D = new __D('initialize', 'Pilot');
                                                                                                     _D.w('initialize pilot!');
-          twttr.provide('twtfilter.stream', new Tweetfilter.Stream(this)); 
+          twttr.provide('twtfltr.stream', new Tweetfilter.Stream(this)); 
           this._bindevents();
         },
         _twttrajaxevent: function(event, request, settings) {
@@ -680,13 +819,10 @@ with({
           "search":["searchResults","searchRealtime","userSearch"]
         },
         _streams: { //streamItemType => stream namespace
-//          "list":["AllSubscriptionsUser","MembershipsUser"],
           "user":["UserSimilaritiesStream","Followers","Friends","UserRecommendationsStream","PeopleSearch"],
           "tweet":["Favorites","User","Home","Mentions","Search"],
           "activity":["ActivityOfMeStream","ActivityByNetworkStream"]
-//        ,  "story":["Discover"],
-//          "suggestion_category":["SuggestionCategoriesStream"] */
-         //only the itemtypes of interest
+         //only the itemtypes which can be parsed by Tweetfilter.parsestream
         },
         _remap: function(_prop) {
           var result = {};
@@ -718,7 +854,46 @@ with({
           "userSearch":"PeopleSearch"
         }
       });  
-      twttr.provide('twtfilter.pilot', new Tweetfilter.Pilot());
+      
+      //************* Tweetfilter main 
+      twttr.klass('Tweetfilter.Main', function() {
+                                                                                                    var _D = new __D('constructor', 'Main');
+                                                                                                    _D.i('creating pilot');
+        this.options = { //TODO: load/save with Tweetfilter.Storage
+          expand_new_tweets: true,
+          flip_sides: true
+        };
+        this.pilot = new Tweetfilter.Pilot(this);
+        this.styler = new Tweetfilter.Styler(this);
+        this.pilot.bind('newitemsloaded', function() {
+          window.setTimeout(function() {
+            $('div.js-new-tweets-bar').trigger('click');
+          }, 840);
+        });
+        this.pilot.initialize();
+      }).statics({
+        _options: {
+          'expand_new_tweets': {
+            initial: false,
+            css: {
+              active: 'div.new-tweets-bar { display:none !important; }'
+            }
+          },
+          'flip_sides': {
+            initial: false,
+            css: {
+              active: ['.content-main { float:left !important; }',
+                       '.dashboard { float:right !important; }']
+            }
+          }
+        }
+      }).methods({
+        refreshoptions: function() {
+          
+        }
+      });
+      
+      twttr.provide('twtfltr', new Tweetfilter.Main());
     }
   })();
 
@@ -793,14 +968,14 @@ addinfo();
 
 if (window.top === window.self && !document.getElementsByClassName('tfscript').length) { //don't run in twitter's helper iframes,  don't inject multiple times (bookmarklet)
   try {
-    if (!window.localStorage || !JSON && ~~[] !== 0 || !Function.prototype.bind || !Array.prototype.indexOf || !Array.prototype.map) {  //required browser/JS features;
+    if (!window.localStorage || !JSON && ~~[] !== 0 || !Array.prototype.indexOf || !Array.prototype.map) {  //required browser/JS features;
       throw 'failed';
     }
     if (window.location.toString().match(/^https?\:\/\/twitter\.com\/(\?.*)?(#.*)?$/)) { //only run on twitter.com
       var scriptelement = document.createElement("script"); //create new <script> element
-      scriptelement.id = 'tf'+(~~(Math.random()*100000));  //random id to prevent fancy browser caching (?)
+      scriptelement.id = 'tf'+(~~(Math.random()*100000));  //random id to prevent inline script caching
       scriptelement.className = 'tfscript';  //classname to identify script block
-      var scripttext = TweetfilterScript.toString(); //assign the whole prototype code to script
+      var scripttext = TweetfilterScript.toString(); //assign the whole code to script
       scriptelement.text = scripttext.substring(scripttext.indexOf('{')+1, scripttext.lastIndexOf('}')); //unwrap the function
       document.body.appendChild(scriptelement); //inject the script 
     } else if (window.location.toString().indexOf('://twitter.com') === -1) { //currently not on twitter.com
