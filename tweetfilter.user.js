@@ -325,19 +325,37 @@ var TweetfilterScript = function() {
         );
         this.refreshoptions();
       }).methods({
+        //get vendor prefix for css property. 
+        //adapted from https://gist.github.com/523692 (by Paul Irish)
+        _prefixed: function(prop) {
+          var prefixes = ['Moz','Khtml','Webkit','O','ms'],
+              elem = document.createElement('div'),
+              upper = prop.charAt(0).toUpperCase() + prop.slice(1);
+          if (prop in elem.style)
+            return prop;
+          for (var len = prefixes.length; len--; ){
+            if ((prefixes[len] + upper) in elem.style)
+              return ('-' + prefixes[len].toLowerCase() + '-' + prop);
+          }
+          return false;
+        },
         //set style element contents
         _setcss: function(id, styles) {
                                                                                                     _D.l(id);
-          $('style#tf-'+id).html(styles);
+          
+          $('style#tf-'+id).html(styles.replace(/@([a-z]+)/g, twttr.bind(this, function(a, style) {
+                                                                                                    _D.l(style, arguments);
+            return this._prefixed(style);
+          })));
         },
         refreshoptions: function() {
                                                                                                     _D.l('refreshing options css');
           var styles = '', option, enabled, optioncss;
           for (var o in this.main.options) {
-            option = this.main.constructor._options[o];
+            option = this.main.constructor.options[o];
             enabled = this.main.options[o];
             if (option.css && (optioncss = option.css[enabled ? 'active' : 'inactive'])) {
-              styles += typeof optioncss === 'string' ? optioncss + "\n" : optioncss.join("\n")
+              styles += typeof optioncss === 'string' ? optioncss + "\n" : optioncss.join("\n")+"\n"
             } 
           }
                                                                                                     _D.d(styles);
@@ -450,14 +468,13 @@ var TweetfilterScript = function() {
             'background-clip: padding-box'
           ]);
           return css.join(';')+';'; 
-        }                
+        }
       });
       
       
       // ############### pilot: watching changes, emitting messages, provide access to dom and twttr objects ################
 
       twttr.klass('Tweetfilter.Pilot', function() {
-        
                                                                                                     _D.d('constructor arguments:', arguments);
         this._pages = this.constructor._remap('_pages');
         this._streams = this.constructor._remap('_streams');
@@ -770,37 +787,171 @@ var TweetfilterScript = function() {
       //************* Tweetfilter main 
       twttr.klass('Tweetfilter.Main', function() {
                                                                                                     _D.i('creating pilot');
-        this.options = { //TODO: load/save with Tweetfilter.Storage
-          expand_new_tweets: true,
-          flip_sides: true
-        };
+        this.options = this.constructor.options;
+        this.loadoptions();
         this.pilot = new Tweetfilter.Pilot(this);
         this.styler = new Tweetfilter.Styler(this);
         this.pilot.bind('newitemsloaded', function() {
-          window.setTimeout(function() {
+          window.setTimeout(twttr.bind(this, function() {
             $('div.js-new-tweets-bar').trigger('click');
-          }, 840);
+            if (this.getoption('expand_lock_scroll')) {
+              
+            }
+          }), 840);
         });
+        this.pilot.bind('streamswitched', twttr.bind(this, function() {
+          this.refreshoptions();
+        }));
         this.pilot.initialize();
       }).statics({
-        _options: {
-          'expand_new_tweets': {
-            initial: false,
+        options: {
+          'expand_new_tweets': { //expand new tweets immediately, don't show new tweets bar
+            current: false,
             css: {
               active: 'div.new-tweets-bar { display:none !important; }'
             }
           },
-          'flip_sides': {
+          'expand_lock_scroll': {
+            current:false
+          },
+          'flip_sides': { //flip sides of dashboard and timeline
             initial: false,
             css: {
               active: ['.content-main { float:left !important; }',
-                       '.dashboard { float:right !important; }']
+                       '.dashboard { float:right !important; }',
+                       '.module .chev-right { @transform:rotate(180deg); right: auto; left: 12px; }',
+                       '.module .list-link { padding: 8px 12px 8px 32px; }',
+                       '.component[data-component-term="thumbnail_viewer"] { margin-left: -20px; }']
+            }
+          },
+          'hide_wtf': { //hide the "who to follow" box in dashboard
+            current: false,
+            css: {
+              active: '.component[data-component-term="user_recommendations"] { display:none !important; }'
+            }
+          },
+          'hide_trends': { //hide the "trends" box in dashboard
+            current: false,
+            css: {
+              active: '.component[data-component-term="trends"] { display:none !important; }'
+            }
+          },
+          'hide_menu': { //hide the website menu in dashboard
+            current: false,
+            css: {
+              active: '.component[data-component-term="footer"] { display:none !important; }'
+            }
+          },
+          'hide_promoted_tweets': { //hide promoted tweets in stream
+            current: false,
+            css: {
+              active: '.stream-item[data-item-type="tweet"][data-item-id*=":"] { display:none !important; }' 
+            }
+          },
+          'connect_mentions': { //map the "connect" menu button to mentions instead of @user-activity
+            current: false,
+            enable: function() {
+              var barlink = $('#global-actions a[data-component-term=connect_nav]'), barhtml;
+              if (barlink.length) {
+                barhtml = barlink.html();
+                barhtml = barhtml.substr(0, barhtml.lastIndexOf('>')+1)+' '+_('Mentions');
+                barlink.html(barhtml).attr('href', '/#!/mentions');
+                return true;
+              }
+              return false; //element not found
+            },
+            disable: function() {
+              var barlink = $('#global-actions a[data-component-term=connect_nav]'), barhtml;
+              if (barlink.length) {
+                barhtml = barlink.html();
+                barhtml = barhtml.substr(0, barhtml.lastIndexOf('>')+1)+' '+_('Connect');
+                barlink.html(barhtml).attr('href', '/#!/i/connect');
+                return true;
+              }
+              return false; //element not found
+            }
+          },
+          'discover_activities': {  //map the "discover" menu button to public activity instead of #stories
+            current: false,
+            enable: function() {
+              var barlink = $('#global-actions a[data-component-term=discover_nav]'), barhtml;
+              if (barlink.length) {
+                barhtml = barlink.html();
+                barhtml = barhtml.substr(0, barhtml.lastIndexOf('>')+1)+' '+_('Activity');
+                barlink.html(barhtml).attr('href', '/#!/activity');
+                return true;
+              }
+              return false; //element not found
+            },
+            disable: function() {
+              var barlink = $('#global-actions a[data-component-term=discover_nav]'), barhtml;
+              if (barlink.length) {
+                barhtml = barlink.html();
+                barhtml = barhtml.substr(0, barhtml.lastIndexOf('>')+1)+' '+_('Discover');
+                barlink.html(barhtml).attr('href', '/#!/i/stories');
+                return true;
+              }
+              return false; //element not found
             }
           }
         }
       }).methods({
         refreshoptions: function() {
-          
+          var option, enabled;
+          for (var o in this.options) {
+            option = this.options[o];
+            if ('setto' in option) {
+              if (option.current !== option.setto && typeof option[option.setto ? 'enable' : 'disable'] === 'function') {
+                                                                                                    _D.d('set option', o, 'to', option.setto, option, '(is currently', option.current, ')');
+                                                                                                    _D.d('callback:', option[option.setto ? 'enable' : 'disable'])
+                if (twttr.bind(this, option[option.setto ? 'enable' : 'disable'])() !== false) {
+                                                                                                    _D.d('callback was fine.')
+                  this.options[o].current = option.setto;
+                  delete option.setto;
+                } else {
+                                                                                                    _D.w('setting option', o, 'to', option.setto, 'failed (callback returned false)');
+                }
+              }
+              
+            }
+          }          
+        },
+        getoption: function(option) {
+          if (option in this.options) {
+            return this.options[option].current;
+          }
+          return false;
+        },
+        setoption: function(option, enabled) {
+          if (option in this.options) {
+            if (this.options[option].current !== enabled) {
+              this.options[option].setto = enabled;
+              this.refreshoptions();
+              return this.options[option].current === enabled;
+            }
+          }
+          return false;
+        },
+        loadoptions: function() {
+          //TODO: load/save with Tweetfilter.Storage
+          var saved = { 
+            expand_new_tweets: true,
+            expand_lock_scroll: true,
+            flip_sides: true,
+            hide_wtf: true,
+            hide_menu: true,
+            hide_trends: true,
+            hide_promoted_tweets: true,
+            connect_mentions: true,
+            discover_activities: true
+          };
+          for (var o in this.options) {
+            if (o in saved) {
+                                                                                                    _D.l('load option ', o, ':', saved[o]);
+              this.options[o].setto = saved[o];
+            }
+          }
+          this.refreshoptions();
         }
       });
       
@@ -813,24 +964,17 @@ var TweetfilterScript = function() {
 
 // first try for new widget
 
-  <div class="component">
-<div class="module">
-  <div class="flex-module">
-    <div class="flex-module-header">
-      <h3>Tweetfilter</h3> <small>· <a href="#" class="">Disable</a></small> <small>· <a href="#" class="">Options</a></small>
+<div class="component">
+  <div class="module">
+    <div class="flex-module">
+      <div class="flex-module-header">
+        <h3>Tweetfilter</h3> <small>· <a href="#" class="">Disable</a></small> <small>· <a href="#" class="">Options</a></small>
+      </div>
     </div>
-<ul class="stats">
-      <li class="js-stat-count js-stat-retweets stat-count"><a><strong>4</strong> Retweets</a></li>
-      <li class="js-stat-count js-stat-retweets stat-count"><a><strong>4</strong> Faves</a></li>
-      <li class="js-stat-count js-stat-retweets stat-count"><a><strong>4</strong> Follow</a></li>
-      <li class="js-stat-count js-stat-retweets stat-count"><a><strong>4</strong> Mentions</a></li>
-</ul>
-
   </div>
 </div>
-</div>
   
-  //collect routes in firebug
+//collect routes in firebug
   
 var routes = localStorage.getItem('routes') || {};
 if (typeof routes === 'string') routes = JSON.parse(routes);
@@ -895,6 +1039,6 @@ if (window.top === window.self && !document.getElementsByClassName('tfscript').l
       }
     }
   } catch(e) {
-    alert('Tweetfilter can\'t run in this browser, it has not all the required features. Tweetfilter is tested on latest Firefox, Chrome or Opera.');
+    alert('Tweetfilter can\'t run in this browser, it lacks some required javascript language features. Tweetfilter is tested on latest Firefox, Chrome or Opera.');
   }
 }
