@@ -91,7 +91,7 @@ with({
        {
         this._loggroup();
         if (_firebug) { //colored output for firebug
-          if (typeof args[0] === 'object') {
+          if (typeof args[0] === 'object') { 
             args.splice(0, 0, ''); //insert dummy element to avoid string conversion of object to debug
           }
           args[0]='%c'+args[0];
@@ -124,7 +124,7 @@ with({
                                                                                                     _D.i('Loading Tweetfilter!');
   (function LoadTweetfilter() {
                                                                                                     var _D = new __D('LoadTweetfilter');
-    if (typeof twttr !== 'object' || typeof jQuery !== 'function') {
+    if (typeof twttr !== 'object' || typeof jQuery !== 'function' || !twttr.currentUser) {
                                                                                                     _D.w('twttr / jQuery not loaded yet! retrying another ', _initretries, 'times.')
       if (--_initretries > 0) 
         window.setTimeout(LoadTweetfilter, 210);
@@ -135,12 +135,67 @@ with({
       }
                                                                                                     _D.l('twttr is loaded!');
 
-      // ############### Storage: handling all local / session storage and packing stuff ################
+      // ############### TweePlus: handling long tweets - see http://tweeplus.com (by Leah Verou) ################
+
+      twttr.klass('Tweetfilter.TweePlus').methods({
+        unique: function(arr) {
+          var uarr = [];
+          for (var a=0,al=arr.length,av;a<al && (av=arr[a]);a++) {
+            if (!~uarr.indexOf(av)) uarr.push(av);
+          }
+          return uarr;
+        },
+        remove: function(arr,rarr) {
+          for (var r=0,rl=rarr.length,rv,p;r<rl && (rv=rarr[r]);r++) {
+            while ((p = -~arr.indexOf(rv))) {
+              arr.splice(p-1,1);
+            }
+          }
+          return arr;
+        },
+        encodetext: function(text) {
+          return encodeURIComponent(text).replace(/(['\(\)\*\.~]|%20)/g, function($1,$2) { 
+            return {"'":'%27','(':'%28',')':'%29','*':'%2A','.':'%2e','~':'%7e','%20':'+'}[$2]; 
+          });
+        },
+        encode: function(text, replytourl) {
+          text = $.trim(text);
+          var username = replytourl ? (replytourl.match(/\/(\w+)\/status\//i) || [,''])[1] : '',
+            cutoff = 115 - (username? username.length + 2 : 0), // initial cut-off point
+            summary,
+            mentions = this.mentions(text),
+            previousLength = mentions.length + 1;
+          while(mentions.length < previousLength) {
+            summary = text.slice(0, cutoff - (mentions.length? mentions.join(' ').length + 1 : 0));
+            previousLength = mentions.length;
+            mentions = this.remove(mentions, this.mentions(summary));
+          }
+          return summary + '[\u2026] ' + 'http://tweeplus.com/'+(replytourl ? '?in_reply_to=' + encodeURIComponent(replytourl) : '')+
+                           '#'+this.encodetext(text) + (mentions? ' ' + mentions.join(' ') : '');
+        },
+        mentions: function(text) {
+          return this.unique(text.match(/@\w{1,20}/g) || []);
+        }
+      });
       
-      twttr.klass('Tweetfilter.Storage', function() {
+      // 
+      // ############### Storage: handling all local / session storage and packing stuff ################
+      // 
+      // twtfltr.options          <- tweetfilter options
+      // twtfltr.filters          <- global filters
+      // twtfltr.friends.0
+      // twtfltr.friends.cursor
+      //
+      
+      twttr.klass('Tweetfilter.Storage', function(main) {
+        
+        this.pilot = main.pilot;
         
       })
       .methods({
+        
+        
+        
         //get json value from local storage with default
         getvalue: function(name, defaultvalue, decodejson) {
           if (typeof decodejson === 'undefined') decodejson = true;
@@ -392,6 +447,33 @@ with({
       
       //do all the filter related stuff
       twttr.klass('Tweetfilter.Filter', function() {
+        
+      }).methods({
+        parseitems: function() {
+          
+        },
+        parsestream: function() {
+          
+        },
+        getlocaldate: function(utcstr, utcoffset, timezone) {
+                                                                                                    var _D = new __D('getlocaldate', 'Filter');
+          var result = {time: '', timezone: ''};
+          var yourtime = utcstr ? new Date(twttr.helpers.parseDateString(utcstr)) : new Date(); //createdAt is undefined in tweets written "just now"
+          if (typeof utcoffset === 'number') {
+            var userdiff = (utcoffset - twttr.currentUser.utcOffset)*1000,
+                usertime = new Date(yourtime.getTime() + userdiff), 
+                usergmt = (utcoffset > 0 ? '+' : '')+(utcoffset / 60 / 60)+' ('+(userdiff > 0 ? '+':'')+(userdiff/60/60/1000)+'h)',
+                time24 = function(datetime) {
+                   var h=datetime.getHours(), m=datetime.getMinutes();
+                   return (h<10 ? '0'+h : h)+':'+(m<10 ? '0'+m : m);
+                };
+            result.time = time24(usertime),
+            result.timezone = this.encodehtml(timezone)+' GMT '+usergmt;
+          }
+          result.timestamp = yourtime.toLocaleTimeString()+' '+yourtime.toLocaleDateString();
+          result.prettytimestamp = twttr.helpers.prettyTime(yourtime);
+          return result;
+        }        
       }); 
       
       //all css creation and manipulation
@@ -400,7 +482,7 @@ with({
                                                                                                     _D.d('constructor arguments:', arguments);
         this.main = main;                                                                                           
         $('head').append( //create style containers
-          '<style id="tf-layout" type="text/css"></style>',  //contains main widget layout
+          '<style id="tf-widget" type="text/css"></style>',  //contains main widget layout
           '<style id="tf-options" type="text/css"></style>', //contains options css
           '<style id="tf-friends" type="text/css"></style>', //display friend status, updated separately
           '<style id="tf-filter" type="text/css"></style>'   //hide and show single tweets according to filters
@@ -434,14 +516,23 @@ with({
         refreshoptions: function() {
                                                                                                     var _D = new __D('refreshoptions', 'Styler');
                                                                                                     _D.l('refreshing options css');
-          var styles = '', option, enabled, optioncss;
+          var styles = '', option, optiontype, enabled, optioncss;
           for (var o in this.main.options) {
-            option = this.main.constructor.options[o];
-            enabled = this.main.options[o];
-            if (option.css && (optioncss = option.css[enabled ? 'active' : 'inactive'])) {
-              styles += typeof optioncss === 'string' ? optioncss + "\n" : optioncss.join("\n")+"\n"
-            } 
-          }
+            option = this.main.options[o];
+            if ('css' in option) {
+              enabled = this.main.getoption(o, false);  //get option value respecting "setto". if setto was deleted in main
+              if (option.css && (optioncss = option.css[enabled ? 'active' : 'inactive'])) {
+                optiontype = typeof(optioncss);
+                styles += (optiontype === 'string' ? optioncss+"\n" :
+                          (optiontype === 'object' ? optioncss.join("\n")+"\n" : 
+                          (optiontype === 'function' ? twttr.bind(this.main, optioncss)() : '')));
+              } 
+              if (option.hasOwnProperty('setto')) {
+                option.current = option.setto;
+                delete option.setto;
+              }
+            }
+          }          
                                                                                                     _D.d(styles);
           this._setcss('options', styles);
         },
@@ -523,6 +614,7 @@ with({
           if (typeof voffset !== 'string') voffset = '0';
           var offset = blur !== 'none' ? hoffset+' '+voffset+' ' : '';
           var css = [];
+          
           if ($.browser.webkit) {
             css.push('-webkit-box-shadow: '+offset+blur+' '+color);
           } else if ($.browser.mozilla) {
@@ -537,6 +629,7 @@ with({
             return '';
           }
           var css = [];
+          
           if ($.browser.mozilla) {
             css = css.concat([ 
               '-moz-border-radius: '+radius
@@ -577,11 +670,27 @@ with({
         };   //current stream info
         this._timer = {
           waitforstream: -1 //waiting for stream to be switched
-        }
+        };
         this.options = {
           clearstreamcache: false
-        }
-        
+        };
+        var currentuser = twttr.currentUser;
+                                                                                                    _D.l('twttr user:', currentuser);
+        this.user = {
+          id: currentuser.idStr,
+          atname: currentuser.screenName.toLowerCase(),
+          atName: currentuser.screenName,
+          bioname: currentuser.name.toLowerCase(),
+          bioName: currentuser.name,
+          picture: currentuser.profileImageUrl,
+          colors: {
+            background: currentuser.profileBackgroundColor,
+            links: currentuser.profileLinkColor,
+            text: currentuser.profileTextColor,
+            border: currentuser.profileSidebarBorderColor
+          }
+        };
+                                                                                                    _D.l('pilot user:', this.user);
                                                                                                     _D.d('route name => page name:', this._pages);
                                                                                                     _D.d('stream namespace => stream itemtype:', this._streams);
       })
@@ -778,6 +887,28 @@ with({
                         this._stream.key = this.cs._cacheKey;
                         this._stream.itemtype = this.cs.streamItemType;
                         this._isloading = false;
+                        var streamusername = this.cs.screenName, 
+                            profileuser = twttr.profileUser;
+                        if (!!streamusername && !!profileuser) {
+                          streamusername = streamusername.toLowerCase();
+                          var profileusername= profileuser.screenName.toLowerCase();
+                                                                                                    _D.l('stream user:', streamusername, 'profile user:', profileusername, 'current user:', this.user.atname);
+                          if (streamusername !== this.user.atname && profileusername === streamusername) {
+                            this.profileuser = {
+                              atname: profileuser.screenName.toLowerCase(),
+                              atName: profileuser.screenName,
+                              bioname: profileuser.name.toLowerCase(),
+                              bioName: profileuser.name,
+                              picture: profileuser.profileImageUrl,
+                              colors: {
+                                background: profileuser.profileBackgroundColor,
+                                links: profileuser.profileLinkColor,
+                                text: profileuser.profileTextColor,
+                                border: profileuser.profileSidebarBorderColor
+                              }
+                            }
+                          } else delete this.profileuser;
+                        } else delete this.profileuser;
                         this.trigger('streamswitched');
                                                                                                     _D.i('stream successfully switched', this._stream);
                         return true;
@@ -789,7 +920,6 @@ with({
                         throw 'itemsnotloaded';
                       }
                     } else {
-
                       throw 'streamkeynotswitched';
                     }
                     //stream was not switched, should'nt get here
@@ -814,7 +944,7 @@ with({
                 this._isloading = true;
               }
               if (!this._timer.waitforstream || this._timer.waitforstream === -1) {
-                                                                                                    _D.l('repolling waitforstream due to exception:', e);
+                                                                                                    _D.w('repolling waitforstream due to exception:', e);
                 this._timer.waitforstream = window.setTimeout(twttr.bind(this, function() {
                   this._timer.waitforstream = -1;
                   this._waitforstream();
@@ -883,6 +1013,7 @@ with({
                                                                                                     var _D = new __D('constructor', 'Main');
                                                                                                     _D.i('creating pilot');
         this.options = this.constructor.options;
+
         this.loadoptions();
         this.pilot = new Tweetfilter.Pilot(this);
         this.styler = new Tweetfilter.Styler(this);
@@ -910,7 +1041,7 @@ with({
             current:false
           },
           'flip_sides': { //flip sides of dashboard and timeline
-            initial: false,
+            current: false,
             css: {
               active: ['.content-main { float:left !important; }',
                        '.dashboard { float:right !important; }',
@@ -937,10 +1068,35 @@ with({
               active: '.component[data-component-term="footer"] { display:none !important; }'
             }
           },
-          'hide_promoted_tweets': { //hide promoted tweets in stream
+          'hide_promoted_content': { //hide promoted tweets in stream
             current: false,
             css: {
-              active: '.stream-item[data-item-type="tweet"][data-item-id*=":"] { display:none !important; }' 
+              active: ['.stream-item[data-item-type="tweet"][data-item-id*=":"], *[class*="promoted"]  { display:none !important; }']
+            }
+          },
+          'hide_topbar': {
+            current: false,
+            enable: function() {
+              $('.topbar').bind('mouseenter.hide_topbar', function() {
+                $(this).toggleClass('mouseover', true);
+              }).bind('mouseleave.hide_topbar', function() {
+                $(this).removeClass('mouseover');
+              });
+              $('#search-query').bind('focus.hide_topbar', function() {
+                $('.topbar').toggleClass('focused', true);
+              }).bind('blur.hide_topbar', function() {
+                $('.topbar').removeClass('focused');
+              });
+            },
+            disable: function() {
+              $('.topbar,#search-query').unbind('.hide_topbar');
+            },
+            css: {
+              active: [
+                '#page-container { padding-top:14px; }',
+                '.topbar { top:-30px; opacity:0; @transition: opacity .25s linear, top .25s ease-out; }',
+                '.topbar.focused, .topbar.mouseover { top: 0; opacity:1; @transition: opacity .25s linear, top .25s ease-out; }'
+              ]
             }
           },
           'connect_mentions': { //map the "connect" menu button to mentions instead of @user-activity
@@ -988,6 +1144,29 @@ with({
               }
               return false; //element not found
             }
+          },
+          'fixed_dashboard': {
+            current: false,
+            enable: function() {
+              twttr.$win.bind('resize.fixed_dashboard scroll.fixed_dashboard', twttr.bind(this, this.scrolldashboard));
+              this.scrolldashboard();
+            },
+            disable: function() {
+              twttr.$win.unbind('.fixed_dashboard');
+            },
+            css: {
+              active: function() { //n.b.: 'this' is Tweetfilter.Main in option callbacks
+                                                                                                    var _D = new __D('fixed_dashboard', 'Main');
+                                                                                                    _D.l('flip_sides active:', this.getoption('flip_sides'));
+                var styles = [];
+                if (this.getoption('flip_sides', false)) {              
+                  styles.push('.dashboard { position:fixed; margin-left: 535px; }');
+                } else {
+                  styles.push('.dashboard { position:fixed; margin-right: 535px; }');
+                }
+                return styles.join("\n");
+              }
+            }
           }
         }
       }).methods({
@@ -1012,8 +1191,14 @@ with({
             }
           }          
         },
-        getoption: function(option) {
+        getoption: function(option, currentonly) {
+          if (typeof currentonly !== 'boolean') {
+            currentonly = true;
+          }
           if (option in this.options) {
+            if (!currentonly && typeof this.options[option].setto === 'boolean') {
+              return this.options[option].setto;
+            }
             return this.options[option].current;
           }
           return false;
@@ -1023,6 +1208,9 @@ with({
             if (this.options[option].current !== enabled) {
               this.options[option].setto = enabled;
               this.refreshoptions();
+              if (this.options[option].css) {
+                this.styler.refreshoptions();
+              }
               return this.options[option].current === enabled;
             }
           }
@@ -1038,8 +1226,10 @@ with({
             hide_wtf: true,
             hide_menu: true,
             hide_trends: true,
-            hide_promoted_tweets: true,
+            hide_promoted_content: true,
             connect_mentions: true,
+            fixed_dashboard: true,
+            hide_topbar: true,
             discover_activities: true
           };
           for (var o in this.options) {
@@ -1049,7 +1239,52 @@ with({
             }
           }
           this.refreshoptions();
+        },
+        scrolldashboard: function() {
+                                                                                                    var _D = new __D('scrolldashboard', 'Main');
+                                                                                                    _D.d('fixing dashboard position');
+          var scroll = this._scroll || {},
+              scrolly = twttr.$win.scrollTop(),
+              dashboard = twttr.app.currentPage().$find('.dashboard'),
+              main = twttr.app.currentPage().$find('.js-content-main'),
+              dashboardtop = parseInt(dashboard.css('top')),
+              dashboardbottom = parseInt(dashboard.css('bottom'));  
+                                                                                                    _D.d('main offset:', main.offset());    
+                                                                                                    _D.d('dashboard top:', dashboardtop, ', bottom:', dashboardbottom);    
+          if (typeof scroll.y !== 'number') {
+            scroll.y = 0;
+          }          
+          var scrolldelta = scrolly - scroll.y;
+                
+          if (scrolldelta > 0) { //scrolled down          
+                                                                                                    _D.d('scrolled down.');
+                                                                                                    _D.d('scrolly:', scrolly, 'scrolldelta:', scrolldelta);
+            if (dashboardbottom < 14) {
+              if (dashboardbottom + scrolldelta < 14) {
+                dashboard.css({'top': dashboardtop - scrolldelta})
+              } else {
+                dashboard.css({'top':dashboardtop - (14 - dashboardbottom)})
+              }
+            }
+          } else {
+                                                                                                    _D.d('scrolled up.');
+                                                                                                    _D.d('scrolly:', scrolly, 'scrolldelta:', scrolldelta);
+            if (dashboardtop < main.offset().top) {
+              if (dashboardtop - scrolldelta < main.offset().top) {
+                dashboard.css({'top': dashboardtop - scrolldelta})
+              } else {
+                dashboard.css({'top':main.position().top})
+              }
+            }
+          }
+          scroll.y = scrolly;
+                                                                                                    _D.d('scroll status:', scroll);
+          this._scroll = scroll;
         }
+      });
+      
+      twttr.provide('twtfltr.templates', {
+        
       });
       
       twttr.provide('twtfltr', new Tweetfilter.Main());
